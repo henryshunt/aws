@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using static AWS.Routines.Helpers;
+using static AWS.Helpers.Helpers;
 
 namespace AWS.Subsystems
 {
@@ -9,7 +9,7 @@ namespace AWS.Subsystems
     {
         public override void SubsystemProcedure()
         {
-            LogEvent("Transmitter", "Subsystem procedure started");
+            LogEvent(LoggingSource.Transmitter, "Subsystem procedure started");
         }
     }
 }

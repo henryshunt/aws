@@ -1,44 +1,39 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Text;
-using System.Threading;
-using Unosquare.RaspberryIO;
-using Unosquare.WiringPi;
-using static AWS.Routines.Helpers;
+using static AWS.Helpers.Helpers;
 
 namespace AWS.Controller
 {
     internal class Controller
     {
         private DateTime StartupTime;
-        private Routines.Configuration Configuration = new Routines.Configuration();
+        private Helpers.Configuration Configuration = new Helpers.Configuration();
+        private SchedulingClock SchedulingClock;
 
         private Subsystems.Logger LoggerSubsystem = new Subsystems.Logger();
         private Subsystems.Transmitter TransmitterSubsystem = new Subsystems.Transmitter();
 
-        private ExitAction ExitAction = ExitAction.None;
-
         public void StartupProcedure()
         {
             StartupTime = DateTime.UtcNow;
-            LogEvent("Controller", "Startup procedure started");
+            LogEvent(LoggingSource.Controller, "Startup procedure started");
 
-            if (!Configuration.Load("/etc/aws.ini"))
+            if (!Configuration.Load(CONFIG_FILE))
             {
-                LogEvent("Controller", "Error while loading the configuration file");
+                LogEvent(LoggingSource.Controller, "Error while loading the configuration file");
+                return;
+            }
+            else LogEvent(LoggingSource.Controller, "Configuration file successfully loaded");
+
+            try { Directory.CreateDirectory(DATA_DIRECTORY); }
+            catch
+            {
+                LogEvent(LoggingSource.Controller, "Error while creating the data directory");
                 return;
             }
 
-            try { Pi.Init<BootstrapWiringPi>(); }
-            catch
-            {
-                LogEvent("Controller", "Error while loading the GPIO implementation");
-            }
-
-            if (!Directory.Exists("/var/lib/aws"))
-                Directory.CreateDirectory("/var/lib/aws");
+            SchedulingClock = new SchedulingClock(Configuration);
+            SchedulingClock.Start();
 
             LoggerSubsystem.Start(Configuration);
             TransmitterSubsystem.Start(Configuration);

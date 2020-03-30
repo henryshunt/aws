@@ -1,37 +1,58 @@
 ﻿using AWS.Hardware.Sensors;
 using System;
 using System.Threading;
-using static AWS.Routines.Helpers;
+using static AWS.Helpers.Helpers;
 
 namespace AWS.Subsystems
 {
     internal class Logger : Subsystem
     {
-        private Timer SamplingTimer;
         private object SamplingTimerLock = new object();
+        private bool HasStartedSampling = false;
+
         private bool IsFirstTimerInterrupt = true;
+
+        private bool IsFirstSample = true;
+        private bool IsFirstLog = true;
 
         private RR111 RainSensor = new Hardware.Sensors.RR111();
 
+
         public override void SubsystemProcedure()
         {
-            LogEvent("Logger", "Subsystem procedure started");
+            LogEvent(LoggingSource.Logger, "Subsystem procedure started");
 
-            DateTime now = DateTime.UtcNow;
-            DateTime nextMinute = RoundUp(now, TimeSpan.FromMinutes(1));
-            int timerTick = Convert.ToInt32((nextMinute - now).TotalMilliseconds);
-            SamplingTimer = new Timer(SamplingTimerInterrupt, null, timerTick, Timeout.Infinite);
+            // Monitor the scheduler pin for once-per-second interrupts
+            //IGpioPin pin = Pi.Gpio[14];
+            //pin.PinMode = GpioPinDriveMode.Input;
+            //pin.RegisterInterruptCallback(EdgeDetection.FallingEdge, OnSchedulingInterrupt);
 
             RainSensor.Setup(4);
-            Console.ReadKey();
+
+            StartSchedulingClock();
+            while (true) ;
         }
 
-        private void SamplingTimerInterrupt(object state)
+        public override void OnSchedulingClockTick()
         {
             DateTime now = DateTime.UtcNow;
-            DateTime nextSecond = RoundUp(now, TimeSpan.FromSeconds(1));
-            int timerTick = Convert.ToInt32((nextSecond - now).TotalMilliseconds);
-            SamplingTimer.Change(timerTick, Timeout.Infinite);
+
+            if (HasStartedSampling)
+            {
+                SamplingProcedure();
+                if (now.Second == 0)
+                    LoggingProcedure();
+            }
+            else
+            {
+                if (now.Second == 0)
+                    HasStartedSampling = true;
+            }
+        }
+
+        private void SamplingProcedure()
+        {
+            DateTime now = DateTime.UtcNow;
 
             bool isFirstTimerInterrupt = IsFirstTimerInterrupt;
             if (isFirstTimerInterrupt)
@@ -54,7 +75,6 @@ namespace AWS.Subsystems
                 LoggingProcedure();
         }
 
-
         private void LoggingProcedure()
         {
             Console.WriteLine("Logging procedure");
@@ -64,12 +84,6 @@ namespace AWS.Subsystems
             RainSensor.SwitchSamplingBucket();
             Console.WriteLine("Rainfall: " + RainSensor.CalculateTotal(bucket) + " mm");
             RainSensor.ResetSamplingBucket(bucket);
-        }
-
-
-        DateTime RoundUp(DateTime dt, TimeSpan d)
-        {
-            return new DateTime((dt.Ticks + d.Ticks - 1) / d.Ticks * d.Ticks, dt.Kind);
         }
     }
 }

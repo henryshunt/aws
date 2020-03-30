@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace AWS.Routines
+namespace AWS.Helpers
 {
     internal class Configuration
     {
+        public int SchedulingClockPin { get; private set; } = 14;
+
         public bool Load(string filePath)
         {
             return true;

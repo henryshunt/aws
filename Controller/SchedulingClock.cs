@@ -1,27 +1,28 @@
 ﻿using AWS.Helpers;
+using Iot.Device.Rtc;
 using System;
+using System.Collections.Generic;
 using System.Device.Gpio;
-using System.Threading;
+using System.Device.I2c;
 
-namespace AWS.Subsystems
+namespace AWS.Controller
 {
-    internal class Subsystem
+    internal class SchedulingClock
     {
-        protected Configuration Configuration;
-        private Thread SubsystemThread;
-        protected bool ShouldReceiveSchedulingClockTicks = false;
+        private Configuration Configuration;
+        private Ds3231 RTC;
 
-        public void Start(Configuration configuration)
+        public SchedulingClock(Configuration configuration)
         {
             Configuration = configuration;
-            SubsystemThread = new Thread(() => SubsystemProcedure());
-            SubsystemThread.Start();
+            // RTC = new Ds3231(I2cDevice.Create(new I2cConnectionSettings(1, Ds3231.DefaultI2cAddress)));
         }
 
-        public virtual void SubsystemProcedure() { }
-
-        protected void StartSchedulingClock()
+        public void Start()
         {
+            // RTC.SetAlarmOne(0, 0, 0, 0, Hardware.DS3231.AlarmOneMode.OncePerSecond);
+
+            // Monitor the scheduling clock pin for interrupts from the RTC
             using (GpioController controller = new GpioController())
             {
                 controller.OpenPin(Configuration.SchedulingClockPin);
@@ -33,9 +34,7 @@ namespace AWS.Subsystems
 
         private void OnSQWInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
-            ThreadPool.QueueUserWorkItem(a => OnSchedulingClockTick());
+            // RTC.LatchAlarmsTriggeredFlags(); // Required to allow the alarm to trigger again
         }
-
-        public virtual void OnSchedulingClockTick() { }
     }
 }

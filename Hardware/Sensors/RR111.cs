@@ -1,7 +1,6 @@
 ﻿using System;
-using Unosquare.RaspberryIO;
-using Unosquare.RaspberryIO.Abstractions;
-using static AWS.Routines.Helpers;
+using System.Device.Gpio;
+using static AWS.Helpers.Helpers;
 
 namespace AWS.Hardware.Sensors
 {
@@ -15,10 +14,22 @@ namespace AWS.Hardware.Sensors
 
         public bool Setup(int pinNumber)
         {
-            IGpioPin pin = Pi.Gpio[pinNumber];
-            pin.PinMode = GpioPinDriveMode.Input;
-            pin.RegisterInterruptCallback(EdgeDetection.RisingEdge, OnInterrupt);
+            //var pins = new GpioController(PinNumberingScheme.Logical);
+            //pins.OpenPin(pinNumber, );
+            //pins.SetPinMode(pinNumber, PinMode.InputPullDown);
+            //pins.RegisterCallbackForPinValueChangedEvent(pinNumber, PinEventTypes.Rising, OnTransferReady);
+
+
+
+            //IGpioPin pin = Pi.Gpio[pinNumber];
+            //pin.PinMode = GpioPinDriveMode.Input;
+            //pin.RegisterInterruptCallback(EdgeDetection.RisingEdge, OnInterrupt);
             return true;
+        }
+
+        private void OnTransferReady(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
+        {
+            throw new NotImplementedException();
         }
 
         private void OnInterrupt()
