@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Device.Gpio;
-using static AWS.Helpers.Helpers;
+using static AWS.Routines.Helpers;
 
 namespace AWS.Hardware.Sensors
 {

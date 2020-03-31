@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace AWS.Helpers
+namespace AWS.Routines
 {
     internal class Configuration
     {

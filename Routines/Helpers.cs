@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace AWS.Helpers
+namespace AWS.Routines
 {
     internal static class Helpers
     {
@@ -26,6 +26,6 @@ namespace AWS.Helpers
                 " -> " + source.ToString() + ": " + description);
         }
 
-        public enum LoggingSource { Controller, Logger, Transmitter }
+        public enum LoggingSource { Startup, Logger, Transmitter }
     }
 }
