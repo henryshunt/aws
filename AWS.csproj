@@ -6,8 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Iot.Device.Bindings" Version="1.0.0" />
-    <PackageReference Include="System.Device.Gpio" Version="1.0.0" />
+    <Reference Include="Iot.Device.Bindings">
+      <HintPath>..\iot\artifacts\bin\Iot.Device.Bindings\Debug\netcoreapp2.1\Iot.Device.Bindings.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Device.Gpio">
+      <HintPath>..\iot\artifacts\bin\Iot.Device.Bindings\Debug\netcoreapp2.1\System.Device.Gpio.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

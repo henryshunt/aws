@@ -6,7 +6,7 @@ namespace AWS.Routines
 {
     internal class Configuration
     {
-        public int SchedulingClockPin { get; private set; } = 14;
+        public int SchedulingClockPin { get; private set; } = 4;
 
         public bool Load(string filePath)
         {

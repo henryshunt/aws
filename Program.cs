@@ -11,7 +11,7 @@ namespace AWS
     {
         private DateTime StartupTime;
         private Configuration Configuration = new Configuration();
-        private SchedulingClock SchedulingClock;
+        private Clock Clock;
 
         private bool HasStartedSampling = false;
 
@@ -34,7 +34,6 @@ namespace AWS
 
         public void Startup()
         {
-            StartupTime = DateTime.UtcNow;
             LogEvent(LoggingSource.Startup, "Startup procedure started");
 
             if (!Configuration.Load(CONFIG_FILE))
@@ -44,17 +43,10 @@ namespace AWS
             }
             else LogEvent(LoggingSource.Startup, "Configuration file successfully loaded");
 
-            try { Directory.CreateDirectory(DATA_DIRECTORY); }
-            catch
-            {
-                LogEvent(LoggingSource.Startup, "Error while creating the data directory");
-                return;
-            }
-
             try
             {
-                SchedulingClock = new SchedulingClock(Configuration);
-                SchedulingClock.Ticked += SchedulingClock_Ticked;
+                Clock = new Clock(Configuration);
+                Clock.Ticked += Clock_Ticked;
             }
             catch
             {
@@ -62,13 +54,23 @@ namespace AWS
                 return;
             }
 
+            StartupTime = DateTime.UtcNow;
+
+            try { Directory.CreateDirectory(DATA_DIRECTORY); }
+            catch
+            {
+                LogEvent(LoggingSource.Startup, "Error while creating the data directory");
+                return;
+            }
+
             RainSensor.Setup(4);
 
-            SchedulingClock.Start();
+            Clock.Start();
+            Console.ReadKey();
         }
 
 
-        private void SchedulingClock_Ticked(object sender, SchedulingClockTickedEventArgs e)
+        private void Clock_Ticked(object sender, ClockTickedEventArgs e)
         {
             // Start sampling at top of next minute and skip the first sample
             if (!HasStartedSampling && e.TickTime.Second == 0)
@@ -80,14 +82,17 @@ namespace AWS
                 return;
             }
 
-            SampleSensors(e.TickTime);
+            if (!HasStartedSampling) return;
+            Console.WriteLine("Alarm: " + e.TickTime.ToString("HH:mm:ss.fffff"));
+
+            //SampleSensors(e.TickTime);
             if (e.TickTime.Second == 0)
             {
-                new Thread(() =>
-                {
-                    LogReport(e.TickTime);
-                    TransmitReports(e.TickTime);
-                }).Start();
+                //new Thread(() =>
+                //{
+                //    LogReport(e.TickTime);
+                //    TransmitReports(e.TickTime);
+                //}).Start();
             }
         }
 
@@ -95,7 +100,7 @@ namespace AWS
         {
             if (Monitor.TryEnter(SampleLock)) // Prevent simultaneous samplings
             {
-                Console.WriteLine(DateTime.UtcNow.ToString("HH:mm:ss.fffff"));
+                //Console.WriteLine(DateTime.UtcNow.ToString("HH:mm:ss.fffff"));
                 Monitor.Exit(SampleLock);
             }
         }
