@@ -7,8 +7,18 @@ namespace AWS.Routines
     internal static class Helpers
     {
         public static string LOGGING_FILE = "/var/logs/aws.log";
-        public static string CONFIG_FILE = "/etc/aws.ini";
-        public static string DATA_DIRECTORY = "/var/aws";
+        public static string CONFIG_FILE = "/etc/aws.json";
+        public static string DATA_DIRECTORY = "/var/aws/";
+
+        public static void LogEvent(string source, string description)
+        {
+            Console.WriteLine(string.Format("                    -> {0}: {1}", source, description));
+        }
+        public static void LogEvent(DateTime time, string source, string description)
+        {
+            Console.WriteLine(string.Format(
+                "{0} -> {1}: {2}", time.ToString("dd/MM/yyyy HH:mm:ss"), source, description));
+        }
 
         public enum ExitAction
         {
@@ -19,13 +29,5 @@ namespace AWS.Routines
         }
 
         public enum SamplingBucket { Bucket1, Bucket2 }
-
-        public static void LogEvent(LoggingSource source, string description)
-        {
-            Console.WriteLine(DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss.f") +
-                " -> " + source.ToString() + ": " + description);
-        }
-
-        public enum LoggingSource { Startup, Logger, Transmitter }
     }
 }

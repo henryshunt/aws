@@ -7,17 +7,18 @@ namespace AWS.Routines
 {
     internal class Clock
     {
-        private Configuration Configuration;
+        private Configuration.Configuration Configuration;
         private Ds3231 RTC;
+
+        public DateTime DateTime { get => RTC.DateTime; }
 
         public event EventHandler<ClockTickedEventArgs> Ticked;
 
-        public Clock(Configuration configuration)
+
+        public Clock(Configuration.Configuration configuration)
         {
             Configuration = configuration;
             RTC = new Ds3231(I2cDevice.Create(new I2cConnectionSettings(1, Ds3231.DefaultI2cAddress)));
-
-            Console.WriteLine("RTC Time: " + RTC.DateTime);
         }
 
         public void Start()

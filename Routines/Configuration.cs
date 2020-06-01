@@ -1,21 +1,60 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Newtonsoft.Json;
+using System.IO;
 
-namespace AWS.Routines
+namespace AWS.Routines.Configuration
 {
     internal class Configuration
     {
-        public int SchedulingClockPin { get; private set; } = 4;
+        public static Configuration Load(string filePath)
+        {
+            JsonSerializerSettings settings = new JsonSerializerSettings();
+            settings.MissingMemberHandling = MissingMemberHandling.Error;
 
-        public bool Load(string filePath)
+            string json = File.ReadAllText(filePath);
+            return JsonConvert.DeserializeObject<Configuration>(json, settings);
+        }
+
+        public static bool Validate(Configuration configuration)
         {
             return true;
         }
 
-        private bool Validate()
+
+        [JsonProperty("schedulingClockPin")]
+        public int SchedulingClockPin { get; set; }
+
+        [JsonProperty("logger")]
+        public LoggerJSON Logger { get; set; }
+
+        internal class LoggerJSON
         {
-            return true;
+
+        }
+
+        [JsonProperty("transmitter")]
+        public TransmitterJSON Transmitter { get; set; }
+
+        internal class TransmitterJSON
+        {
+            [JsonProperty("transmitReports")]
+            public bool TransmitReports { get; set; }
+        }
+
+        [JsonProperty("sensors")]
+        public SensorsJSON Sensors { get; set; }
+
+        public class SensorsJSON
+        {
+            [JsonProperty("rainfall")]
+            public RainfallJSON Rainfall { get; set; }
+
+            internal class RainfallJSON
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+                [JsonProperty("pin")]
+                public int Pin { get; set; }
+            }
         }
     }
 }

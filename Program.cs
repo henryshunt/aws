@@ -3,14 +3,14 @@ using AWS.Routines;
 using System;
 using System.IO;
 using System.Threading;
-using static AWS.Routines.Helpers;
+using AWS.Routines.Configuration;
 
 namespace AWS
 {
     internal class Program
     {
         private DateTime StartupTime;
-        private Configuration Configuration = new Configuration();
+        private Configuration Configuration;
         private Clock Clock;
 
         private bool HasStartedSampling = false;
@@ -34,38 +34,88 @@ namespace AWS
 
         public void Startup()
         {
-            LogEvent(LoggingSource.Startup, "Startup procedure started");
+            Helpers.LogEvent("Startup", "------------------------------------------------");
+            Helpers.LogEvent("Startup", "Began startup procedure");
 
-            if (!Configuration.Load(CONFIG_FILE))
+            // Load configuration
+            try
             {
-                LogEvent(LoggingSource.Startup, "Error while loading the configuration file");
+                Configuration = Configuration.Load(Helpers.CONFIG_FILE);
+
+                if (!Configuration.Validate(Configuration))
+                {
+                    Helpers.LogEvent("Startup", "Error while validating configuration file");
+                    return;
+                }
+                else Helpers.LogEvent("Startup", "Loaded configuration file");
+            }
+            catch
+            {
+                Helpers.LogEvent("Startup", "Error while loading configuration file");
                 return;
             }
-            else LogEvent(LoggingSource.Startup, "Configuration file successfully loaded");
 
+            // Initialise clock
             try
             {
                 Clock = new Clock(Configuration);
                 Clock.Ticked += Clock_Ticked;
+
+                Helpers.LogEvent(Clock.DateTime, "Startup", "Initialised scheduling clock");
             }
             catch
             {
-                LogEvent(LoggingSource.Startup, "Error while initialising the scheduling clock");
+                Helpers.LogEvent("Startup", "Error while initialising scheduling clock");
                 return;
             }
 
-            StartupTime = DateTime.UtcNow;
+            StartupTime = Clock.DateTime;
 
-            try { Directory.CreateDirectory(DATA_DIRECTORY); }
+            // Data directory
+            try { Directory.CreateDirectory(Helpers.DATA_DIRECTORY); }
             catch
             {
-                LogEvent(LoggingSource.Startup, "Error while creating the data directory");
+                Helpers.LogEvent(Clock.DateTime, "Startup", "Error while creating data directory");
                 return;
             }
 
-            RainSensor.Setup(4);
+            // Data database
+            try
+            {
+                if (!Database.Exists(Database.DatabaseFile.Data))
+                {
+                    Database.Create(Database.DatabaseFile.Data);
+                    Helpers.LogEvent(Clock.DateTime, "Startup", "Created data database");
+                }
+            }
+            catch
+            {
+                Helpers.LogEvent(Clock.DateTime, "Startup", "Error while creating data database");
+                return;
+            }
+
+            // Transmit database
+            try
+            {
+                if (Configuration.Transmitter.TransmitReports &&
+                    !Database.Exists(Database.DatabaseFile.Transmit))
+                {
+                    Database.Create(Database.DatabaseFile.Transmit);
+                    Helpers.LogEvent(Clock.DateTime, "Startup", "Created transmit database");
+                }
+            }
+            catch
+            {
+                Helpers.LogEvent(Clock.DateTime, "Startup", "Error while creating transmit database");
+                return;
+            }
+
+
+            RainSensor.Setup(Configuration.Sensors.Rainfall.Pin);
 
             Clock.Start();
+            Helpers.LogEvent(Clock.DateTime, "Startup", "Started scheduling clock");
+
             Console.ReadKey();
         }
 
@@ -110,7 +160,7 @@ namespace AWS
             Console.WriteLine("Logging procedure");
 
             // Rain sensor
-            SamplingBucket bucket = RainSensor.SamplingBucket;
+            Helpers.SamplingBucket bucket = RainSensor.SamplingBucket;
             RainSensor.SwitchSamplingBucket();
             Console.WriteLine("Rainfall: " + RainSensor.CalculateTotal(bucket) + " mm");
             RainSensor.ResetSamplingBucket(bucket);
