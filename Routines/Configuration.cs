@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.IO;
 
-namespace AWS.Routines.Configuration
+namespace AWS.Routines
 {
     internal class Configuration
     {

@@ -11,17 +11,16 @@ namespace AWS.Routines
         public enum DatabaseFile { Data, Transmit };
 
 
-        public static SqliteConnection Connect(DatabaseFile database)
-        {
-            string file = database == DatabaseFile.Data ? DATA_FILE : TRANSMIT_FILE;
-            return new SqliteConnection(string.Format("Data Source={0};", file));
-        }
-
-
         public static bool Exists(DatabaseFile database)
         {
             string file = database == DatabaseFile.Data ? DATA_FILE : TRANSMIT_FILE;
             return File.Exists(file);
+        }
+
+        public static SqliteConnection Connect(DatabaseFile database)
+        {
+            string file = database == DatabaseFile.Data ? DATA_FILE : TRANSMIT_FILE;
+            return new SqliteConnection(string.Format("Data Source={0};", file));
         }
 
         public static void Create(DatabaseFile database)
@@ -35,6 +34,11 @@ namespace AWS.Routines
                 SqliteCommand command = new SqliteCommand(sql, connection);
                 command.ExecuteNonQuery();
             }
+        }
+
+        public static void WriteReport(Helpers.Report report)
+        {
+
         }
     }
 }

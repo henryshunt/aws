@@ -12,7 +12,7 @@ namespace AWS.Routines
 
         public static void LogEvent(string source, string description)
         {
-            Console.WriteLine(string.Format("                    -> {0}: {1}", source, description));
+            Console.WriteLine(string.Format("                       {0}: {1}", source, description));
         }
         public static void LogEvent(DateTime time, string source, string description)
         {
@@ -29,5 +29,17 @@ namespace AWS.Routines
         }
 
         public enum SamplingBucket { Bucket1, Bucket2 }
+
+        public class Report
+        {
+
+        }
+
+        public static SamplingBucket InvertSamplingBucket(SamplingBucket samplingBucket)
+        {
+            if (samplingBucket == SamplingBucket.Bucket1)
+                return SamplingBucket.Bucket2;
+            else return SamplingBucket.Bucket1;
+        }
     }
 }

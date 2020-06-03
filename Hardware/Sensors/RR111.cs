@@ -14,16 +14,9 @@ namespace AWS.Hardware.Sensors
 
         public bool Setup(int pinNumber)
         {
-            //var pins = new GpioController(PinNumberingScheme.Logical);
-            //pins.OpenPin(pinNumber, );
-            //pins.SetPinMode(pinNumber, PinMode.InputPullDown);
-            //pins.RegisterCallbackForPinValueChangedEvent(pinNumber, PinEventTypes.Rising, OnTransferReady);
-
-
-
-            //IGpioPin pin = Pi.Gpio[pinNumber];
-            //pin.PinMode = GpioPinDriveMode.Input;
-            //pin.RegisterInterruptCallback(EdgeDetection.RisingEdge, OnInterrupt);
+            var pins = new GpioController(PinNumberingScheme.Logical);
+            pins.OpenPin(pinNumber, PinMode.InputPullUp);
+            pins.RegisterCallbackForPinValueChangedEvent(pinNumber, PinEventTypes.Rising, OnInterrupt);
             return true;
         }
 
@@ -32,7 +25,7 @@ namespace AWS.Hardware.Sensors
             throw new NotImplementedException();
         }
 
-        private void OnInterrupt()
+        private void OnInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
             if (IsPaused) return;
             if (SamplingBucket == SamplingBucket.Bucket1)
@@ -54,7 +47,7 @@ namespace AWS.Hardware.Sensors
             else return SamplingBucket2 * 0.254;
         }
 
-        public void ResetSamplingBucket(SamplingBucket samplingBucket)
+        public void EmptySamplingBucket(SamplingBucket samplingBucket)
         {
             if (samplingBucket == SamplingBucket.Bucket1)
                 SamplingBucket1 = 0;

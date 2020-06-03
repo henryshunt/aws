@@ -3,7 +3,6 @@ using AWS.Routines;
 using System;
 using System.IO;
 using System.Threading;
-using AWS.Routines.Configuration;
 
 namespace AWS
 {
@@ -13,9 +12,7 @@ namespace AWS
         private Configuration Configuration;
         private Clock Clock;
 
-        private bool HasStartedSampling = false;
-
-        private object SampleLock = new object();
+        private bool ShouldSkipSample = true;
         private object TransmitLock = new object();
 
         // private MAX31865 AirTSensor = new MAX31865();
@@ -23,7 +20,7 @@ namespace AWS
         // private ICA WSpdSensor = new ICA();
         // private IEV2 WDirSensor = new IEV2();
         // private IMSBB SunDSensor = new IMSSB();
-        private RR111 RainSensor = new RR111();
+        private RR111 RainfallSensor = new RR111();
         // private BMP280 StaPSensor = new BMP280();
         // private MAX31865 ST10Sensor = new MAX31865();
         // private MAX31865 ST30Sensor = new MAX31865();
@@ -34,7 +31,6 @@ namespace AWS
 
         public void Startup()
         {
-            Helpers.LogEvent("Startup", "------------------------------------------------");
             Helpers.LogEvent("Startup", "Began startup procedure");
 
             // Load configuration
@@ -111,7 +107,7 @@ namespace AWS
             }
 
 
-            RainSensor.Setup(Configuration.Sensors.Rainfall.Pin);
+            RainfallSensor.Setup(Configuration.Sensors.Rainfall.Pin);
 
             Clock.Start();
             Helpers.LogEvent(Clock.DateTime, "Startup", "Started scheduling clock");
@@ -122,48 +118,54 @@ namespace AWS
 
         private void Clock_Ticked(object sender, ClockTickedEventArgs e)
         {
-            // Start sampling at top of next minute and skip the first sample
-            if (!HasStartedSampling && e.TickTime.Second == 0)
-            {
-                HasStartedSampling = true;
+            bool shouldSkipLog = false;
+            bool isFirstSample = false;
 
-                // WindSensor.IsPaused = false;
-                // RainSensor.IsPaused = false;
-                return;
+            // Start sampling at the top of the first minute
+            if (ShouldSkipSample && e.TickTime.Second == 0)
+            {
+                ShouldSkipSample = false;
+                shouldSkipLog = true;
+                isFirstSample = true;
+
+                //WindSpeedSensor.IsPaused = false;
+                RainfallSensor.IsPaused = false;
             }
 
-            if (!HasStartedSampling) return;
-            Console.WriteLine("Alarm: " + e.TickTime.ToString("HH:mm:ss.fffff"));
+            if (ShouldSkipSample) return;
+            SampleSensors(e.TickTime, isFirstSample);
 
-            //SampleSensors(e.TickTime);
-            if (e.TickTime.Second == 0)
+            // Run at the top of all minutes except the first
+            if (e.TickTime.Second == 0 && !shouldSkipLog)
             {
-                //new Thread(() =>
-                //{
-                //    LogReport(e.TickTime);
-                //    TransmitReports(e.TickTime);
-                //}).Start();
+                new Thread(() =>
+                {
+                    LogReport(e.TickTime);
+                    TransmitReports(e.TickTime);
+                }).Start();
             }
         }
 
-        private void SampleSensors(DateTime time)
+        private void SampleSensors(DateTime time, bool isFirstSample)
         {
-            if (Monitor.TryEnter(SampleLock)) // Prevent simultaneous samplings
+            Console.WriteLine("Sample: " + time.ToString("ss"));
+
+            // Switch interrupt-based sensors to a new bucket right on the minute
+            if (time.Second == 0 && !isFirstSample)
             {
-                //Console.WriteLine(DateTime.UtcNow.ToString("HH:mm:ss.fffff"));
-                Monitor.Exit(SampleLock);
+                //WindSpeedSensor.SwitchSamplingBucket();
+                RainfallSensor.SwitchSamplingBucket();
             }
         }
 
         private void LogReport(DateTime time)
         {
-            Console.WriteLine("Logging procedure");
+            Console.WriteLine("Log");
 
-            // Rain sensor
-            Helpers.SamplingBucket bucket = RainSensor.SamplingBucket;
-            RainSensor.SwitchSamplingBucket();
-            Console.WriteLine("Rainfall: " + RainSensor.CalculateTotal(bucket) + " mm");
-            RainSensor.ResetSamplingBucket(bucket);
+            // Rainfall sensor
+            Helpers.SamplingBucket bucket = Helpers.InvertSamplingBucket(RainfallSensor.SamplingBucket);
+            Console.WriteLine("Rainfall: " + RainfallSensor.CalculateTotal(bucket) + " mm");
+            RainfallSensor.EmptySamplingBucket(bucket);
         }
 
         private void TransmitReports(DateTime now)
