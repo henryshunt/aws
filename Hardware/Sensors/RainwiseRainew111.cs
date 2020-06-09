@@ -4,7 +4,7 @@ using static AWS.Routines.Helpers;
 
 namespace AWS.Hardware.Sensors
 {
-    internal class RR111
+    internal class RainwiseRainew111
     {
         public bool IsPaused { get; set; } = true;
         public SamplingBucket SamplingBucket { get; private set; } = SamplingBucket.Bucket1;
@@ -12,18 +12,14 @@ namespace AWS.Hardware.Sensors
         private int SamplingBucket1 = 0;
         private int SamplingBucket2 = 0;
 
-        public bool Setup(int pinNumber)
+        public bool Initialise(int pinNumber)
         {
-            var pins = new GpioController(PinNumberingScheme.Logical);
-            pins.OpenPin(pinNumber, PinMode.InputPullUp);
-            pins.RegisterCallbackForPinValueChangedEvent(pinNumber, PinEventTypes.Rising, OnInterrupt);
+            GpioController gpio = new GpioController(PinNumberingScheme.Logical);
+            gpio.OpenPin(pinNumber, PinMode.InputPullUp);
+            gpio.RegisterCallbackForPinValueChangedEvent(pinNumber, PinEventTypes.Rising, OnInterrupt);
             return true;
         }
 
-        private void OnTransferReady(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
-        {
-            throw new NotImplementedException();
-        }
 
         private void OnInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
@@ -33,13 +29,6 @@ namespace AWS.Hardware.Sensors
             else SamplingBucket2++;
         }
 
-        public void SwitchSamplingBucket()
-        {
-            if (SamplingBucket == SamplingBucket.Bucket1)
-                SamplingBucket = SamplingBucket.Bucket2;
-            else SamplingBucket = SamplingBucket.Bucket1;
-        }
-
         public double CalculateTotal(SamplingBucket samplingBucket)
         {
             if (samplingBucket == SamplingBucket.Bucket1)
@@ -47,6 +36,12 @@ namespace AWS.Hardware.Sensors
             else return SamplingBucket2 * 0.254;
         }
 
+        public void SwitchSamplingBucket()
+        {
+            if (SamplingBucket == SamplingBucket.Bucket1)
+                SamplingBucket = SamplingBucket.Bucket2;
+            else SamplingBucket = SamplingBucket.Bucket1;
+        }
         public void EmptySamplingBucket(SamplingBucket samplingBucket)
         {
             if (samplingBucket == SamplingBucket.Bucket1)

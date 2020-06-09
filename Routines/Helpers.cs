@@ -14,10 +14,22 @@ namespace AWS.Routines
         {
             Console.WriteLine(string.Format("                       {0}: {1}", source, description));
         }
+        public static void LogEvent(string source, string description, Exception exception)
+        {
+            Console.WriteLine(string.Format("                       {0}: {1}", source, description));
+            Console.WriteLine("                           " + exception.Message);
+
+        }
         public static void LogEvent(DateTime time, string source, string description)
         {
             Console.WriteLine(string.Format(
                 "{0} -> {1}: {2}", time.ToString("dd/MM/yyyy HH:mm:ss"), source, description));
+        }
+        public static void LogEvent(DateTime time, string source, string description, Exception exception)
+        {
+            Console.WriteLine(string.Format(
+                "{0} -> {1}: {2}", time.ToString("dd/MM/yyyy HH:mm:ss"), source, description));
+            Console.WriteLine("                           " + exception.Message);
         }
 
         public enum ExitAction
@@ -32,7 +44,25 @@ namespace AWS.Routines
 
         public class Report
         {
+            public DateTime Time { get; set; }
+            public float? AirTemperature { get; set; } = null;
+            public float? RelativeHumidity { get; set; } = null;
+            public float? DewPoint { get; set; } = null;
+            public float? WindSpeed { get; set; } = null;
+            public float? WindDirection { get; set; } = null;
+            public float? WindGustSpeed { get; set; } = null;
+            public float? WindGustDirection { get; set; } = null;
+            public double? Rainfall { get; set; } = null;
+            public float? StationPressure { get; set; } = null;
+            public float? MSLPressure { get; set; } = null;
+            public float? SoilTemperature10 { get; set; } = null;
+            public float? SoilTemperature30 { get; set; } = null;
+            public float? SoilTemperature100 { get; set; } = null;
 
+            public Report(DateTime time)
+            {
+                Time = time;
+            }
         }
 
         public static SamplingBucket InvertSamplingBucket(SamplingBucket samplingBucket)

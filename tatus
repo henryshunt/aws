@@ -1,0 +1,569 @@
+warning: CRLF will be replaced by LF in AWS.csproj.
+The file will have its original line endings in your working directory
+warning: CRLF will be replaced by LF in Program.cs.
+The file will have its original line endings in your working directory
+warning: CRLF will be replaced by LF in Routines/Configuration.cs.
+The file will have its original line endings in your working directory
+warning: CRLF will be replaced by LF in Routines/Database.cs.
+The file will have its original line endings in your working directory
+warning: CRLF will be replaced by LF in Routines/Helpers.cs.
+The file will have its original line endings in your working directory
+[1mdiff --git a/AWS.csproj b/AWS.csproj[m
+[1mindex 9e8cec5..bad4c80 100644[m
+[1m--- a/AWS.csproj[m
+[1m+++ b/AWS.csproj[m
+[36m@@ -8,6 +8,7 @@[m
+   <ItemGroup>[m
+     <PackageReference Include="Microsoft.Data.Sqlite" Version="3.1.4" />[m
+     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />[m
+[32m+[m[32m    <PackageReference Include="System.IO.Ports" Version="4.7.0" />[m
+   </ItemGroup>[m
+ [m
+   <ItemGroup>[m
+[1mdiff --git a/Hardware/Sensors/RR111.cs b/Hardware/Sensors/RR111.cs[m
+[1mdeleted file mode 100644[m
+[1mindex 5746200..0000000[m
+[1m--- a/Hardware/Sensors/RR111.cs[m
+[1m+++ /dev/null[m
+[36m@@ -1,57 +0,0 @@[m
+[31m-﻿using System;[m
+[31m-using System.Device.Gpio;[m
+[31m-using static AWS.Routines.Helpers;[m
+[31m-[m
+[31m-namespace AWS.Hardware.Sensors[m
+[31m-{[m
+[31m-    internal class RR111[m
+[31m-    {[m
+[31m-        public bool IsPaused { get; set; } = true;[m
+[31m-        public SamplingBucket SamplingBucket { get; private set; } = SamplingBucket.Bucket1;[m
+[31m-[m
+[31m-        private int SamplingBucket1 = 0;[m
+[31m-        private int SamplingBucket2 = 0;[m
+[31m-[m
+[31m-        public bool Setup(int pinNumber)[m
+[31m-        {[m
+[31m-            var pins = new GpioController(PinNumberingScheme.Logical);[m
+[31m-            pins.OpenPin(pinNumber, PinMode.InputPullUp);[m
+[31m-            pins.RegisterCallbackForPinValueChangedEvent(pinNumber, PinEventTypes.Rising, OnInterrupt);[m
+[31m-            return true;[m
+[31m-        }[m
+[31m-[m
+[31m-        private void OnTransferReady(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)[m
+[31m-        {[m
+[31m-            throw new NotImplementedException();[m
+[31m-        }[m
+[31m-[m
+[31m-        private void OnInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)[m
+[31m-        {[m
+[31m-            if (IsPaused) return;[m
+[31m-            if (SamplingBucket == SamplingBucket.Bucket1)[m
+[31m-                SamplingBucket1++;[m
+[31m-            else SamplingBucket2++;[m
+[31m-        }[m
+[31m-[m
+[31m-        public void SwitchSamplingBucket()[m
+[31m-        {[m
+[31m-            if (SamplingBucket == SamplingBucket.Bucket1)[m
+[31m-                SamplingBucket = SamplingBucket.Bucket2;[m
+[31m-            else SamplingBucket = SamplingBucket.Bucket1;[m
+[31m-        }[m
+[31m-[m
+[31m-        public double CalculateTotal(SamplingBucket samplingBucket)[m
+[31m-        {[m
+[31m-            if (samplingBucket == SamplingBucket.Bucket1)[m
+[31m-                return SamplingBucket1 * 0.254;[m
+[31m-            else return SamplingBucket2 * 0.254;[m
+[31m-        }[m
+[31m-[m
+[31m-        public void EmptySamplingBucket(SamplingBucket samplingBucket)[m
+[31m-        {[m
+[31m-            if (samplingBucket == SamplingBucket.Bucket1)[m
+[31m-                SamplingBucket1 = 0;[m
+[31m-            else SamplingBucket2 = 0;[m
+[31m-        }[m
+[31m-    }[m
+[31m-}[m
+[1mdiff --git a/Program.cs b/Program.cs[m
+[1mindex dea230c..53daee5 100644[m
+[1m--- a/Program.cs[m
+[1m+++ b/Program.cs[m
+[36m@@ -1,8 +1,11 @@[m
+ ﻿using AWS.Hardware.Sensors;[m
+ using AWS.Routines;[m
+ using System;[m
+[32m+[m[32musing System.Collections.Generic;[m
+ using System.IO;[m
+ using System.Threading;[m
+[32m+[m[32musing static AWS.Hardware.Sensors.Satellite;[m
+[32m+[m[32musing static AWS.Routines.Helpers;[m
+ [m
+ namespace AWS[m
+ {[m
+[36m@@ -15,12 +18,13 @@[m [mnamespace AWS[m
+         private bool ShouldSkipSample = true;[m
+         private object TransmitLock = new object();[m
+ [m
+[32m+[m[32m        private Dictionary<int, Satellite> Satellites = new Dictionary<int, Satellite>();[m
+         // private MAX31865 AirTSensor = new MAX31865();[m
+         // private HTU21D RelHSensor = new HTU21D();[m
+[31m-        // private ICA WSpdSensor = new ICA();[m
+[31m-        // private IEV2 WDirSensor = new IEV2();[m
+[32m+[m[32m        private Inspeed8PulseAnemometer WindSpeedSensor = new Inspeed8PulseAnemometer();[m
+[32m+[m[32m        private InspeedWindVane WindDirectionSensor = new InspeedWindVane();[m
+         // private IMSBB SunDSensor = new IMSSB();[m
+[31m-        private RR111 RainfallSensor = new RR111();[m
+[32m+[m[32m        private RainwiseRainew111 RainfallSensor = new RainwiseRainew111();[m
+         // private BMP280 StaPSensor = new BMP280();[m
+         // private MAX31865 ST10Sensor = new MAX31865();[m
+         // private MAX31865 ST30Sensor = new MAX31865();[m
+[36m@@ -31,23 +35,23 @@[m [mnamespace AWS[m
+ [m
+         public void Startup()[m
+         {[m
+[31m-            Helpers.LogEvent("Startup", "Began startup procedure");[m
+[32m+[m[32m            LogEvent("Startup", "Began startup procedure");[m
+ [m
+             // Load configuration[m
+             try[m
+             {[m
+[31m-                Configuration = Configuration.Load(Helpers.CONFIG_FILE);[m
+[32m+[m[32m                Configuration = Configuration.Load(CONFIG_FILE);[m
+ [m
+                 if (!Configuration.Validate(Configuration))[m
+                 {[m
+[31m-                    Helpers.LogEvent("Startup", "Error while validating configuration file");[m
+[32m+[m[32m                    LogEvent("Startup", "Error while validating configuration file");[m
+                     return;[m
+                 }[m
+[31m-                else Helpers.LogEvent("Startup", "Loaded configuration file");[m
+[32m+[m[32m                else LogEvent("Startup", "Loaded configuration file");[m
+             }[m
+[31m-            catch[m
+[32m+[m[32m            catch (Exception ex)[m
+             {[m
+[31m-                Helpers.LogEvent("Startup", "Error while loading configuration file");[m
+[32m+[m[32m                LogEvent("Startup", "Error while loading configuration file", ex);[m
+                 return;[m
+             }[m
+ [m
+[36m@@ -57,21 +61,21 @@[m [mnamespace AWS[m
+                 Clock = new Clock(Configuration);[m
+                 Clock.Ticked += Clock_Ticked;[m
+ [m
+[31m-                Helpers.LogEvent(Clock.DateTime, "Startup", "Initialised scheduling clock");[m
+[32m+[m[32m                LogEvent(Clock.DateTime, "Startup", "Initialised scheduling clock");[m
+             }[m
+             catch[m
+             {[m
+[31m-                Helpers.LogEvent("Startup", "Error while initialising scheduling clock");[m
+[32m+[m[32m                LogEvent("Startup", "Error while initialising scheduling clock");[m
+                 return;[m
+             }[m
+ [m
+             StartupTime = Clock.DateTime;[m
+ [m
+             // Data directory[m
+[31m-            try { Directory.CreateDirectory(Helpers.DATA_DIRECTORY); }[m
+[32m+[m[32m            try { Directory.CreateDirectory(DATA_DIRECTORY); }[m
+             catch[m
+             {[m
+[31m-                Helpers.LogEvent(Clock.DateTime, "Startup", "Error while creating data directory");[m
+[32m+[m[32m                LogEvent(Clock.DateTime, "Startup", "Error while creating data directory");[m
+                 return;[m
+             }[m
+ [m
+[36m@@ -81,12 +85,12 @@[m [mnamespace AWS[m
+                 if (!Database.Exists(Database.DatabaseFile.Data))[m
+                 {[m
+                     Database.Create(Database.DatabaseFile.Data);[m
+[31m-                    Helpers.LogEvent(Clock.DateTime, "Startup", "Created data database");[m
+[32m+[m[32m                    LogEvent(Clock.DateTime, "Startup", "Created data database");[m
+                 }[m
+             }[m
+             catch[m
+             {[m
+[31m-                Helpers.LogEvent(Clock.DateTime, "Startup", "Error while creating data database");[m
+[32m+[m[32m                LogEvent(Clock.DateTime, "Startup", "Error while creating data database");[m
+                 return;[m
+             }[m
+ [m
+[36m@@ -97,24 +101,58 @@[m [mnamespace AWS[m
+                     !Database.Exists(Database.DatabaseFile.Transmit))[m
+                 {[m
+                     Database.Create(Database.DatabaseFile.Transmit);[m
+[31m-                    Helpers.LogEvent(Clock.DateTime, "Startup", "Created transmit database");[m
+[32m+[m[32m                    LogEvent(Clock.DateTime, "Startup", "Created transmit database");[m
+                 }[m
+             }[m
+             catch[m
+             {[m
+[31m-                Helpers.LogEvent(Clock.DateTime, "Startup", "Error while creating transmit database");[m
+[32m+[m[32m                LogEvent(Clock.DateTime, "Startup", "Error while creating transmit database");[m
+                 return;[m
+             }[m
+ [m
+ [m
+[31m-            RainfallSensor.Setup(Configuration.Sensors.Rainfall.Pin);[m
+[32m+[m[32m            InitialiseSensors();[m
+ [m
+             Clock.Start();[m
+[31m-            Helpers.LogEvent(Clock.DateTime, "Startup", "Started scheduling clock");[m
+[31m-[m
+[32m+[m[32m            LogEvent(Clock.DateTime, "Startup", "Started scheduling clock");[m
+             Console.ReadKey();[m
+         }[m
+[32m+[m[32m        private void InitialiseSensors()[m
+[32m+[m[32m        {[m
+[32m+[m[32m            Dictionary<int, SatelliteConfiguration> configs = new Dictionary<int, SatelliteConfiguration>();[m
+[32m+[m[32m            foreach (int satelliteId in Configuration.Sensors.SatelliteIDs)[m
+[32m+[m[32m            {[m
+[32m+[m[32m                Satellites.Add(satelliteId, new Satellite());[m
+[32m+[m[32m                configs.Add(satelliteId, new SatelliteConfiguration());[m
+[32m+[m[32m            }[m
+ [m
+[32m+[m[32m            if (Configuration.Sensors.WindSpeed.Enabled)[m
+[32m+[m[32m            {[m
+[32m+[m[32m                if (Configuration.Sensors.WindSpeed.SatelliteID != null)[m
+[32m+[m[32m                {[m
+[32m+[m[32m                    configs[(int)Configuration.Sensors.WindSpeed.SatelliteID].WindSpeedEnabled = true;[m
+[32m+[m[32m                    configs[(int)Configuration.Sensors.WindSpeed.SatelliteID].WindSpeedPin =[m
+[32m+[m[32m                        (int)Configuration.Sensors.WindSpeed.Pin;[m
+[32m+[m[32m                    WindSpeedSensor.Initialise(Satellites[(int)Configuration.Sensors.WindSpeed.SatelliteID]);[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            if (Configuration.Sensors.WindDirection.Enabled)[m
+[32m+[m[32m            {[m
+[32m+[m[32m                if (Configuration.Sensors.WindDirection.SatelliteID != null)[m
+[32m+[m[32m                {[m
+[32m+[m[32m                    configs[(int)Configuration.Sensors.WindDirection.SatelliteID].WindDirectionEnabled = true;[m
+[32m+[m[32m                    configs[(int)Configuration.Sensors.WindDirection.SatelliteID].WindDirectionPin =[m
+[32m+[m[32m                        (int)Configuration.Sensors.WindDirection.Pin;[m
+[32m+[m[32m                    WindDirectionSensor.Initialise(Satellites[(int)Configuration.Sensors.WindDirection.SatelliteID]);[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            RainfallSensor.Initialise((int)Configuration.Sensors.Rainfall.Pin);[m
+[32m+[m
+[32m+[m[32m            foreach (KeyValuePair<int, Satellite> satellite in Satellites)[m
+[32m+[m[32m                satellite.Value.Initialise(satellite.Key, configs[satellite.Key]);[m
+[32m+[m[32m        }[m
+ [m
+         private void Clock_Ticked(object sender, ClockTickedEventArgs e)[m
+         {[m
+[36m@@ -128,6 +166,9 @@[m [mnamespace AWS[m
+                 shouldSkipLog = true;[m
+                 isFirstSample = true;[m
+ [m
+[32m+[m[32m                foreach (KeyValuePair<int, Satellite> satellite in Satellites)[m
+[32m+[m[32m                    satellite.Value.StartSensors();[m
+[32m+[m
+                 //WindSpeedSensor.IsPaused = false;[m
+                 RainfallSensor.IsPaused = false;[m
+             }[m
+[36m@@ -148,7 +189,10 @@[m [mnamespace AWS[m
+ [m
+         private void SampleSensors(DateTime time, bool isFirstSample)[m
+         {[m
+[31m-            Console.WriteLine("Sample: " + time.ToString("ss"));[m
+[32m+[m[32m            //Console.WriteLine("Sample: " + time.ToString("ss"));[m
+[32m+[m
+[32m+[m[32m            foreach (KeyValuePair<int, Satellite> satellite in Satellites)[m
+[32m+[m[32m                satellite.Value.ReadSensors();[m
+ [m
+             // Switch interrupt-based sensors to a new bucket right on the minute[m
+             if (time.Second == 0 && !isFirstSample)[m
+[36m@@ -157,17 +201,20 @@[m [mnamespace AWS[m
+                 RainfallSensor.SwitchSamplingBucket();[m
+             }[m
+         }[m
+[31m-[m
+         private void LogReport(DateTime time)[m
+         {[m
+[31m-            Console.WriteLine("Log");[m
+[32m+[m[32m            Report report = new Report(time);[m
+ [m
+             // Rainfall sensor[m
+[31m-            Helpers.SamplingBucket bucket = Helpers.InvertSamplingBucket(RainfallSensor.SamplingBucket);[m
+[31m-            Console.WriteLine("Rainfall: " + RainfallSensor.CalculateTotal(bucket) + " mm");[m
+[31m-            RainfallSensor.EmptySamplingBucket(bucket);[m
+[31m-        }[m
+[32m+[m[32m            SamplingBucket samplingBucket = InvertSamplingBucket(RainfallSensor.SamplingBucket);[m
+[32m+[m[32m            report.Rainfall = RainfallSensor.CalculateTotal(samplingBucket);[m
+[32m+[m[32m            RainfallSensor.EmptySamplingBucket(samplingBucket);[m
+ [m
+[32m+[m[32m            //Console.WriteLine("Log");[m
+[32m+[m[32m            Console.WriteLine("Rainfall: " + report.Rainfall + " mm");[m
+[32m+[m
+[32m+[m[32m            Database.WriteReport(report);[m
+[32m+[m[32m        }[m
+         private void TransmitReports(DateTime now)[m
+         {[m
+             // Don't start transmitting if we're already transmitting[m
+[1mdiff --git a/Routines/Configuration.cs b/Routines/Configuration.cs[m
+[1mindex 45327a5..5c5702b 100644[m
+[1m--- a/Routines/Configuration.cs[m
+[1m+++ b/Routines/Configuration.cs[m
+[36m@@ -1,4 +1,7 @@[m
+[31m-﻿using Newtonsoft.Json;[m
+[32m+[m[32m﻿using AWS.Hardware.Sensors;[m
+[32m+[m[32musing Newtonsoft.Json;[m
+[32m+[m[32musing System.Collections.Generic;[m
+[32m+[m[32musing System.Diagnostics.Contracts;[m
+ using System.IO;[m
+ [m
+ namespace AWS.Routines[m
+[36m@@ -11,7 +14,15 @@[m [mnamespace AWS.Routines[m
+             settings.MissingMemberHandling = MissingMemberHandling.Error;[m
+ [m
+             string json = File.ReadAllText(filePath);[m
+[31m-            return JsonConvert.DeserializeObject<Configuration>(json, settings);[m
+[32m+[m[32m            Configuration config = JsonConvert.DeserializeObject<Configuration>(json, settings);[m
+[32m+[m
+[32m+[m[32m            // Create a list of satellite IDs from those referenced by the sensors[m
+[32m+[m[32m            if (config.Sensors.WindSpeed.SatelliteID != null)[m
+[32m+[m[32m                config.Sensors.SatelliteIDs.Add((int)config.Sensors.WindSpeed.SatelliteID);[m
+[32m+[m[32m            if (config.Sensors.WindDirection.SatelliteID != null)[m
+[32m+[m[32m                config.Sensors.SatelliteIDs.Add((int)config.Sensors.WindDirection.SatelliteID);[m
+[32m+[m
+[32m+[m[32m            return config;[m
+         }[m
+ [m
+         public static bool Validate(Configuration configuration)[m
+[36m@@ -31,6 +42,7 @@[m [mnamespace AWS.Routines[m
+ [m
+         }[m
+ [m
+[32m+[m
+         [JsonProperty("transmitter")][m
+         public TransmitterJSON Transmitter { get; set; }[m
+ [m
+[36m@@ -40,11 +52,41 @@[m [mnamespace AWS.Routines[m
+             public bool TransmitReports { get; set; }[m
+         }[m
+ [m
+[32m+[m
+         [JsonProperty("sensors")][m
+         public SensorsJSON Sensors { get; set; }[m
+ [m
+         public class SensorsJSON[m
+         {[m
+[32m+[m[32m            [JsonIgnore][m
+[32m+[m[32m            public HashSet<int> SatelliteIDs { get; set; } = new HashSet<int>();[m
+[32m+[m
+[32m+[m[32m            [JsonProperty("windSpeed")][m
+[32m+[m[32m            public WindSpeedJSON WindSpeed { get; set; }[m
+[32m+[m
+[32m+[m[32m            internal class WindSpeedJSON[m
+[32m+[m[32m            {[m
+[32m+[m[32m                [JsonProperty("enabled")][m
+[32m+[m[32m                public bool Enabled { get; set; }[m
+[32m+[m[32m                [JsonProperty("pin")][m
+[32m+[m[32m                public int? Pin { get; set; }[m
+[32m+[m[32m                [JsonProperty("satellite")][m
+[32m+[m[32m                public int? SatelliteID { get; set; }[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            [JsonProperty("windDirection")][m
+[32m+[m[32m            public WindSpeedJSON WindDirection { get; set; }[m
+[32m+[m
+[32m+[m[32m            internal class WindDirectionJSON[m
+[32m+[m[32m            {[m
+[32m+[m[32m                [JsonProperty("enabled")][m
+[32m+[m[32m                public bool Enabled { get; set; }[m
+[32m+[m[32m                [JsonProperty("pin")][m
+[32m+[m[32m                public int? Pin { get; set; }[m
+[32m+[m[32m                [JsonProperty("satellite")][m
+[32m+[m[32m                public int? SatelliteID { get; set; }[m
+[32m+[m[32m            }[m
+[32m+[m
+             [JsonProperty("rainfall")][m
+             public RainfallJSON Rainfall { get; set; }[m
+ [m
+[36m@@ -53,7 +95,7 @@[m [mnamespace AWS.Routines[m
+                 [JsonProperty("enabled")][m
+                 public bool Enabled { get; set; }[m
+                 [JsonProperty("pin")][m
+[31m-                public int Pin { get; set; }[m
+[32m+[m[32m                public int? Pin { get; set; }[m
+             }[m
+         }[m
+     }[m
+[1mdiff --git a/Routines/Database.cs b/Routines/Database.cs[m
+[1mindex 0c1f469..baf6d8a 100644[m
+[1m--- a/Routines/Database.cs[m
+[1m+++ b/Routines/Database.cs[m
+[36m@@ -1,12 +1,15 @@[m
+ ﻿using Microsoft.Data.Sqlite;[m
+[32m+[m[32musing System;[m
+ using System.IO;[m
+[32m+[m[32musing System.Linq.Expressions;[m
+[32m+[m[32musing static AWS.Routines.Helpers;[m
+ [m
+ namespace AWS.Routines[m
+ {[m
+     internal static class Database[m
+     {[m
+[31m-        private static string DATA_FILE = Helpers.DATA_DIRECTORY + "data.sq3";[m
+[31m-        private static string TRANSMIT_FILE = Helpers.DATA_DIRECTORY + "transmit.sq3";[m
+[32m+[m[32m        private static string DATA_FILE = DATA_DIRECTORY + "data.sq3";[m
+[32m+[m[32m        private static string TRANSMIT_FILE = DATA_DIRECTORY + "transmit.sq3";[m
+ [m
+         public enum DatabaseFile { Data, Transmit };[m
+ [m
+[36m@@ -23,6 +26,7 @@[m [mnamespace AWS.Routines[m
+             return new SqliteConnection(string.Format("Data Source={0};", file));[m
+         }[m
+ [m
+[32m+[m
+         public static void Create(DatabaseFile database)[m
+         {[m
+             string file = database == DatabaseFile.Data ? DATA_FILE : TRANSMIT_FILE;[m
+[36m@@ -30,15 +34,89 @@[m [mnamespace AWS.Routines[m
+ [m
+             using (SqliteConnection connection = Connect(database))[m
+             {[m
+[31m-                string sql = "CREATE TABLE reports (time TEXT,air_temperature REAL,relative_humidity REAL,rainfall REAL)";[m
+[31m-                SqliteCommand command = new SqliteCommand(sql, connection);[m
+[31m-                command.ExecuteNonQuery();[m
+[32m+[m[32m                connection.Open();[m
+[32m+[m[32m                string sql = "CREATE TABLE reports (time TEXT PRIMARY KEY, air_temperature REAL, " +[m
+[32m+[m[32m                    "relative_humidity REAL, dew_point REAL, wind_speed REAL, wind_direction INTEGER, " +[m
+[32m+[m[32m                    "wind_gust_speed REAL, wind_gust_direction INTEGER, rainfall REAL, station_pressure REAL, " +[m
+[32m+[m[32m                    "msl_pressure REAL, soil_temperature_10 REAL, soil_temperature_30 REAL, soil_temperature_100 REAL)";[m
+[32m+[m
+[32m+[m[32m                SqliteCommand query = new SqliteCommand(sql, connection);[m
+[32m+[m[32m                query.ExecuteNonQuery();[m
+             }[m
+         }[m
+ [m
+[31m-        public static void WriteReport(Helpers.Report report)[m
+[32m+[m[32m        public static void WriteReport(Report report)[m
+         {[m
+[32m+[m[32m            using (SqliteConnection connection = Connect(DatabaseFile.Data))[m
+[32m+[m[32m            {[m
+[32m+[m[32m                connection.Open();[m
+[32m+[m[32m                string sql = "INSERT INTO reports (time, air_temperature, relative_humidity, dew_point, wind_speed, " +[m
+[32m+[m[32m                    "wind_direction, wind_gust_speed, wind_gust_direction, rainfall, station_pressure, msl_pressure, " +[m
+[32m+[m[32m                    "soil_temperature_10, soil_temperature_30, soil_temperature_100) VALUES (@Time, @AirTemperature, " +[m
+[32m+[m[32m                    "@RelativeHumidity, @DewPoint, @WindSpeed, @WindDirection, @WindGustSpeed, @WindGustDirection, " +[m
+[32m+[m[32m                    "@Rainfall, @StationPressure, @MSLPressure, @SoilTemperature10, @SoilTemperature30, " +[m
+[32m+[m[32m                    "@SoilTemperature100)";[m
+[32m+[m
+[32m+[m[32m                SqliteCommand query = new SqliteCommand(sql, connection);[m
+[32m+[m[32m                query.CommandText = sql;[m
+[32m+[m[32m                query.Connection = connection;[m
+[32m+[m
+[32m+[m[32m                query.Parameters.AddWithValue("@Time", report.Time.ToString("dd/MM/yyyy HH:mm:ss"));[m
+[32m+[m
+[32m+[m[32m                if (report.AirTemperature == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@AirTemperature", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@AirTemperature", report.AirTemperature);[m
+[32m+[m
+[32m+[m[32m                if (report.RelativeHumidity == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@RelativeHumidity", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@RelativeHumidity", report.RelativeHumidity);[m
+[32m+[m
+[32m+[m[32m                if (report.DewPoint == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@DewPoint", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@DewPoint", report.DewPoint);[m
+[32m+[m
+[32m+[m[32m                if (report.WindSpeed == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@WindSpeed", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@WindSpeed", report.WindSpeed);[m
+[32m+[m
+[32m+[m[32m                if (report.WindDirection == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@WindDirection", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@WindDirection", report.WindDirection);[m
+ [m
+[32m+[m[32m                if (report.WindGustSpeed == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@WindGustSpeed", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@WindGustSpeed", report.WindGustSpeed);[m
+[32m+[m
+[32m+[m[32m                if (report.WindGustDirection == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@WindGustDirection", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@WindGustDirection", report.WindGustDirection);[m
+[32m+[m
+[32m+[m[32m                if (report.Rainfall == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@Rainfall", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@Rainfall", report.Rainfall);[m
+[32m+[m
+[32m+[m[32m                if (report.StationPressure == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@StationPressure", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@StationPressure", report.StationPressure);[m
+[32m+[m
+[32m+[m[32m                if (report.MSLPressure == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@MSLPressure", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@MSLPressure", report.MSLPressure);[m
+[32m+[m
+[32m+[m[32m                if (report.SoilTemperature10 == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@SoilTemperature10", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@SoilTemperature10", report.SoilTemperature10);[m
+[32m+[m
+[32m+[m[32m                if (report.SoilTemperature30 == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@SoilTemperature30", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@SoilTemperature30", report.SoilTemperature30);[m
+[32m+[m
+[32m+[m[32m                if (report.SoilTemperature100 == null)[m
+[32m+[m[32m                    query.Parameters.AddWithValue("@SoilTemperature100", DBNull.Value);[m
+[32m+[m[32m                else query.Parameters.AddWithValue("@SoilTemperature100", report.SoilTemperature100);[m
+[32m+[m
+[32m+[m[32m                query.ExecuteReader();[m
+[32m+[m[32m            }[m
+         }[m
+     }[m
+ }[m
+[1mdiff --git a/Routines/Helpers.cs b/Routines/Helpers.cs[m
+[1mindex bbe4b10..b8fd48a 100644[m
+[1m--- a/Routines/Helpers.cs[m
+[1m+++ b/Routines/Helpers.cs[m
+[36m@@ -14,11 +14,23 @@[m [mnamespace AWS.Routines[m
+         {[m
+             Console.WriteLine(string.Format("                       {0}: {1}", source, description));[m
+         }[m
+[32m+[m[32m        public static void LogEvent(string source, string description, Exception exception)[m
+[32m+[m[32m        {[m
+[32m+[m[32m            Console.WriteLine(string.Format("                       {0}: {1}", source, description));[m
+[32m+[m[32m            Console.WriteLine("                           " + exception.Message);[m
+[32m+[m
+[32m+[m[32m        }[m
+         public static void LogEvent(DateTime time, string source, string description)[m
+         {[m
+             Console.WriteLine(string.Format([m
+                 "{0} -> {1}: {2}", time.ToString("dd/MM/yyyy HH:mm:ss"), source, description));[m
+         }[m
+[32m+[m[32m        public static void LogEvent(DateTime time, string source, string description, Exception exception)[m
+[32m+[m[32m        {[m
+[32m+[m[32m            Console.WriteLine(string.Format([m
+[32m+[m[32m                "{0} -> {1}: {2}", time.ToString("dd/MM/yyyy HH:mm:ss"), source, description));[m
+[32m+[m[32m            Console.WriteLine("                           " + exception.Message);[m
+[32m+[m[32m        }[m
+ [m
+         public enum ExitAction[m
+         {[m
+[36m@@ -32,7 +44,25 @@[m [mnamespace AWS.Routines[m
+ [m
+         public class Report[m
+         {[m
+[32m+[m[32m            public DateTime Time { get; set; }[m
+[32m+[m[32m            public float? AirTemperature { get; set; } = null;[m
+[32m+[m[32m            public float? RelativeHumidity { get; set; } = null;[m
+[32m+[m[32m            public float? DewPoint { get; set; } = null;[m
+[32m+[m[32m            public float? WindSpeed { get; set; } = null;[m
+[32m+[m[32m            public float? WindDirection { get; set; } = null;[m
+[32m+[m[32m            public float? WindGustSpeed { get; set; } = null;[m
+[32m+[m[32m            public float? WindGustDirection { get; set; } = null;[m
+[32m+[m[32m            public double? Rainfall { get; set; } = null;[m
+[32m+[m[32m            public float? StationPressure { get; set; } = null;[m
+[32m+[m[32m            public float? MSLPressure { get; set; } = null;[m
+[32m+[m[32m            public float? SoilTemperature10 { get; set; } = null;[m
+[32m+[m[32m            public float? SoilTemperature30 { get; set; } = null;[m
+[32m+[m[32m            public float? SoilTemperature100 { get; set; } = null;[m
+ [m
+[32m+[m[32m            public Report(DateTime time)[m
+[32m+[m[32m            {[m
+[32m+[m[32m                Time = time;[m
+[32m+[m[32m            }[m
+         }[m
+ [m
+         public static SamplingBucket InvertSamplingBucket(SamplingBucket samplingBucket)[m
