@@ -41,19 +41,20 @@ namespace AWS.Routines
         }
 
         public enum SamplingBucket { Bucket1, Bucket2 }
+        public enum ValueBucket { Bucket1, Bucket2 }
 
         public class Report
         {
             public DateTime Time { get; set; }
-            public float? AirTemperature { get; set; } = null;
-            public float? RelativeHumidity { get; set; } = null;
+            public double? AirTemperature { get; set; } = null;
+            public double? RelativeHumidity { get; set; } = null;
             public float? DewPoint { get; set; } = null;
             public float? WindSpeed { get; set; } = null;
             public float? WindDirection { get; set; } = null;
             public float? WindGustSpeed { get; set; } = null;
             public float? WindGustDirection { get; set; } = null;
             public double? Rainfall { get; set; } = null;
-            public float? StationPressure { get; set; } = null;
+            public double? StationPressure { get; set; } = null;
             public float? MSLPressure { get; set; } = null;
             public float? SoilTemperature10 { get; set; } = null;
             public float? SoilTemperature30 { get; set; } = null;
@@ -70,6 +71,13 @@ namespace AWS.Routines
             if (samplingBucket == SamplingBucket.Bucket1)
                 return SamplingBucket.Bucket2;
             else return SamplingBucket.Bucket1;
+        }
+
+        public static ValueBucket InvertValueBucket(ValueBucket valueBucket)
+        {
+            if (valueBucket == ValueBucket.Bucket1)
+                return ValueBucket.Bucket2;
+            else return ValueBucket.Bucket1;
         }
     }
 }

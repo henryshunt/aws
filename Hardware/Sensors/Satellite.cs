@@ -13,8 +13,8 @@ namespace AWS.Hardware.Sensors
         {
             foreach (string serialPort in SerialPort.GetPortNames())
             {
-                if (serialPort == "/dev/ttyAMA0") continue; // Ignore the internal port
-
+                if (!serialPort.StartsWith("/dev/ttyUSB")) continue; // Ignore the internal port
+                Console.WriteLine(serialPort);
                 SerialPort port = new SerialPort(serialPort);
 
                 //try
@@ -53,8 +53,12 @@ namespace AWS.Hardware.Sensors
 
         public void ReadSensors()
         {
+            new Thread(() =>
+            {
+
+            }).Start();
             string response = SendCommand(Device, "SAMPLE\n");
-            Console.WriteLine(response);
+            //Console.WriteLine(response);
         }
 
         private string SendCommand(SerialPort serialPort, string command)
@@ -87,10 +91,14 @@ namespace AWS.Hardware.Sensors
 
         public class SatelliteConfiguration
         {
+            public bool AirTemperatureEnabled { get; set; } = false;
             public bool WindSpeedEnabled { get; set; } = false;
             public int WindSpeedPin { get; set; }
             public bool WindDirectionEnabled { get; set; } = false;
             public int WindDirectionPin { get; set; }
+            public bool RainfallEnabled { get; set; } = false;
+            public int RainfallPin { get; set; }
+
 
             public override string ToString()
             {

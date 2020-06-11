@@ -3,6 +3,8 @@ using AWS.Routines;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using static AWS.Hardware.Sensors.Satellite;
 using static AWS.Routines.Helpers;
@@ -16,10 +18,9 @@ namespace AWS
         private Clock Clock;
 
         private bool ShouldSkipSample = true;
-        private object TransmitLock = new object();
 
         private Dictionary<int, Satellite> Satellites = new Dictionary<int, Satellite>();
-        // private MAX31865 AirTSensor = new MAX31865();
+        private BME680 BME680Sensor = new BME680();
         // private HTU21D RelHSensor = new HTU21D();
         private Inspeed8PulseAnemometer WindSpeedSensor = new Inspeed8PulseAnemometer();
         private InspeedWindVane WindDirectionSensor = new InspeedWindVane();
@@ -119,39 +120,67 @@ namespace AWS
         }
         private void InitialiseSensors()
         {
-            Dictionary<int, SatelliteConfiguration> configs = new Dictionary<int, SatelliteConfiguration>();
+            // Create a blank configuration for each satellite mentioned in the main configuration
+            Dictionary<int, SatelliteConfiguration> satConfigs = new Dictionary<int, SatelliteConfiguration>();
             foreach (int satelliteId in Configuration.Sensors.SatelliteIDs)
-            {
-                Satellites.Add(satelliteId, new Satellite());
-                configs.Add(satelliteId, new SatelliteConfiguration());
-            }
+                satConfigs.Add(satelliteId, new SatelliteConfiguration());
 
-            if (Configuration.Sensors.WindSpeed.Enabled)
+            BME680Sensor.Initialise(false);
+            //if (Configuration.Sensors.AirTemperature.Enabled)
+            //{
+            //    int? satelliteId = Configuration.Sensors.AirTemperature.SatelliteID;
+            //    if (satelliteId != null)
+            //    {
+            //        satConfigs[(int)satelliteId].AirTemperatureEnabled = true;
+            //        BME680Sensor.Initialise(true);
+            //    }
+            //    else BME680Sensor.Initialise(false);
+            //}
+
+            //if (Configuration.Sensors.WindSpeed.Enabled)
+            //{
+            //    int? satelliteId = Configuration.Sensors.WindSpeed.SatelliteID;
+            //    if (satelliteId != null)
+            //    {
+            //        satConfigs[(int)satelliteId].WindSpeedEnabled = true;
+            //        satConfigs[(int)satelliteId].WindSpeedPin = (int)Configuration.Sensors.WindSpeed.Pin;
+            //        WindSpeedSensor.Initialise();
+            //    }
+            //    else WindSpeedSensor.Initialise((int)Configuration.Sensors.WindSpeed.Pin);
+            //}
+
+            //if (Configuration.Sensors.WindDirection.Enabled)
+            //{
+            //    int? satelliteId = Configuration.Sensors.WindDirection.SatelliteID;
+            //    if (satelliteId != null)
+            //    {
+            //        satConfigs[(int)satelliteId].WindDirectionEnabled = true;
+            //        satConfigs[(int)satelliteId].WindDirectionPin = (int)Configuration.Sensors.WindDirection.Pin;
+            //        WindDirectionSensor.Initialise(true);
+            //    }
+            //    else WindDirectionSensor.Initialise(false, (int)Configuration.Sensors.WindDirection.Pin);
+            //}
+
+            if (Configuration.Sensors.Rainfall.Enabled)
             {
-                if (Configuration.Sensors.WindSpeed.SatelliteID != null)
+                int? satelliteId = Configuration.Sensors.Rainfall.SatelliteID;
+                if (satelliteId != null)
                 {
-                    configs[(int)Configuration.Sensors.WindSpeed.SatelliteID].WindSpeedEnabled = true;
-                    configs[(int)Configuration.Sensors.WindSpeed.SatelliteID].WindSpeedPin =
-                        (int)Configuration.Sensors.WindSpeed.Pin;
-                    WindSpeedSensor.Initialise(Satellites[(int)Configuration.Sensors.WindSpeed.SatelliteID]);
+                    satConfigs[(int)satelliteId].RainfallEnabled = true;
+                    satConfigs[(int)satelliteId].RainfallPin = (int)Configuration.Sensors.Rainfall.Pin;
+                    RainfallSensor.Initialise();
                 }
+                else RainfallSensor.Initialise((int)Configuration.Sensors.Rainfall.Pin);
             }
 
-            if (Configuration.Sensors.WindDirection.Enabled)
-            {
-                if (Configuration.Sensors.WindDirection.SatelliteID != null)
-                {
-                    configs[(int)Configuration.Sensors.WindDirection.SatelliteID].WindDirectionEnabled = true;
-                    configs[(int)Configuration.Sensors.WindDirection.SatelliteID].WindDirectionPin =
-                        (int)Configuration.Sensors.WindDirection.Pin;
-                    WindDirectionSensor.Initialise(Satellites[(int)Configuration.Sensors.WindDirection.SatelliteID]);
-                }
-            }
 
-            RainfallSensor.Initialise((int)Configuration.Sensors.Rainfall.Pin);
-
-            foreach (KeyValuePair<int, Satellite> satellite in Satellites)
-                satellite.Value.Initialise(satellite.Key, configs[satellite.Key]);
+            // Initialise each satellite with its finalised configurations
+            //foreach (int satelliteId in Configuration.Sensors.SatelliteIDs)
+            //{
+            //    Satellite satellite = new Satellite();
+            //    satellite.Initialise(satelliteId, satConfigs[satelliteId]);
+            //    Satellites.Add(satelliteId, satellite);
+            //}
         }
 
         private void Clock_Ticked(object sender, ClockTickedEventArgs e)
@@ -189,39 +218,51 @@ namespace AWS
 
         private void SampleSensors(DateTime time, bool isFirstSample)
         {
-            //Console.WriteLine("Sample: " + time.ToString("ss"));
+            //foreach (KeyValuePair<int, Satellite> satellite in Satellites)
+            //{
+            //    satellite.Value.ReadSensors();
+            //}
 
-            foreach (KeyValuePair<int, Satellite> satellite in Satellites)
-                satellite.Value.ReadSensors();
-
-            // Switch interrupt-based sensors to a new bucket right on the minute
-            if (time.Second == 0 && !isFirstSample)
+            if (time.Second == 0)
             {
-                //WindSpeedSensor.SwitchSamplingBucket();
-                RainfallSensor.SwitchSamplingBucket();
+                //WindSpeedSensor.WindSpeedStore.SwapValueBuckets();
+                RainfallSensor.RainfallStore.SwapValueBucket();
+
+                BME680Sensor.TemperatureStore.SwapValueBucket();
+                BME680Sensor.RelativeHumidityStore.SwapValueBucket();
+                BME680Sensor.PressureStore.SwapValueBucket();
             }
+
+            Thread BME680Thread = BME680Sensor.SampleDevice();
+
+            // Don't continue until all sensors have completed sampling
+            BME680Thread.Join();
         }
         private void LogReport(DateTime time)
         {
             Report report = new Report(time);
 
-            // Rainfall sensor
-            SamplingBucket samplingBucket = InvertSamplingBucket(RainfallSensor.SamplingBucket);
-            report.Rainfall = RainfallSensor.CalculateTotal(samplingBucket);
-            RainfallSensor.EmptySamplingBucket(samplingBucket);
+            //// Rainfall sensor
+            //SamplingBucket samplingBucket = InvertSamplingBucket(RainfallSensor.SamplingBucket);
+            //report.Rainfall = RainfallSensor.CalculateTotal(samplingBucket);
+            //RainfallSensor.EmptySamplingBucket(samplingBucket);
+            //Console.WriteLine("Rainfall: " + report.Rainfall + " mm");
 
-            //Console.WriteLine("Log");
-            Console.WriteLine("Rainfall: " + report.Rainfall + " mm");
+            report.AirTemperature = BME680Sensor.TemperatureStore.InactiveValueBucket.Average();
+            BME680Sensor.TemperatureStore.InactiveValueBucket.Clear();
+            report.RelativeHumidity = BME680Sensor.RelativeHumidityStore.InactiveValueBucket.Average();
+            BME680Sensor.RelativeHumidityStore.InactiveValueBucket.Clear();
+            report.StationPressure = BME680Sensor.PressureStore.InactiveValueBucket.Average();
+            BME680Sensor.PressureStore.InactiveValueBucket.Clear();
+
+            Console.WriteLine(string.Format("T: {0}   H: {1}   P: {2}", Math.Round((double)report.AirTemperature, 2),
+                Math.Round((double)report.RelativeHumidity, 2), Math.Round((double)report.StationPressure, 2)));
 
             Database.WriteReport(report);
         }
         private void TransmitReports(DateTime now)
         {
-            // Don't start transmitting if we're already transmitting
-            if (Monitor.TryEnter(TransmitLock))
-            {
-                Monitor.Exit(TransmitLock);
-            }
+
         }
     }
 }

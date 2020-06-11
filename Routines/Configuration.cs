@@ -61,6 +61,17 @@ namespace AWS.Routines
             [JsonIgnore]
             public HashSet<int> SatelliteIDs { get; set; } = new HashSet<int>();
 
+            [JsonProperty("airTemperature")]
+            public WindSpeedJSON AirTemperature { get; set; }
+
+            internal class AirTemperatureJSON
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+                [JsonProperty("satellite")]
+                public int? SatelliteID { get; set; }
+            }
+
             [JsonProperty("windSpeed")]
             public WindSpeedJSON WindSpeed { get; set; }
 
@@ -96,6 +107,8 @@ namespace AWS.Routines
                 public bool Enabled { get; set; }
                 [JsonProperty("pin")]
                 public int? Pin { get; set; }
+                [JsonProperty("satellite")]
+                public int? SatelliteID { get; set; }
             }
         }
     }
