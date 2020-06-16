@@ -7,37 +7,36 @@ namespace AWS.Routines
 {
     internal class Clock
     {
-        private Configuration Configuration;
-        private Ds3231 RTC;
+        private int tickInterruptPin;
+        private Ds3231 rtc;
 
-        public DateTime DateTime { get => RTC.DateTime; }
+        public DateTime DateTime { get => rtc.DateTime; }
 
         public event EventHandler<ClockTickedEventArgs> Ticked;
 
 
-        public Clock(Configuration configuration)
+        public Clock(int tickInterruptPin)
         {
-            Configuration = configuration;
-            RTC = new Ds3231(I2cDevice.Create(new I2cConnectionSettings(1, Ds3231.DefaultI2cAddress)));
+            this.tickInterruptPin = tickInterruptPin;
+            rtc = new Ds3231(I2cDevice.Create(new I2cConnectionSettings(1, Ds3231.DefaultI2cAddress)));
         }
 
         public void Start()
         {
-            RTC.Alarm1 = new Ds3231Alarm1(0, 0, 0, 0, Ds3231Alarm1.AlarmMatchMode.OncePerSecond);
-            RTC.EnableAlarm(Ds3231.Alarm.Alarm1);
+            rtc.SetAlarm1(new Ds3231Alarm1(0, 0, 0, 0, Ds3231Alarm1MatchMode.OncePerSecond));
+            rtc.SetEnabledAlarm(Ds3231Alarm.Alarm1);
 
             // Monitor the scheduling clock pin for interrupts from the RTC
             GpioController controller = new GpioController();
-            controller.OpenPin(Configuration.SchedulingClockPin);
-            controller.SetPinMode(Configuration.SchedulingClockPin, PinMode.Input);
-            controller.RegisterCallbackForPinValueChangedEvent(
-                Configuration.SchedulingClockPin, PinEventTypes.Falling, OnPinInterrupt);
+            controller.OpenPin(tickInterruptPin);
+            controller.SetPinMode(tickInterruptPin, PinMode.Input);
+            controller.RegisterCallbackForPinValueChangedEvent(tickInterruptPin, PinEventTypes.Falling, OnPinInterrupt);
         }
 
         private void OnPinInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
-            RTC.ResetAlarmState(Ds3231.Alarm.Alarm1);
-            Ticked?.Invoke(sender, new ClockTickedEventArgs(RTC.DateTime));
+            rtc.ResetAlarmTriggeredStates();
+            Ticked?.Invoke(sender, new ClockTickedEventArgs(rtc.DateTime));
         }
     }
 }

@@ -2,9 +2,10 @@
 using AWS.Routines;
 using System;
 using System.Collections.Generic;
+using System.Device.Gpio;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading;
 using static AWS.Hardware.Sensors.Satellite;
 using static AWS.Routines.Helpers;
@@ -15,6 +16,7 @@ namespace AWS
     {
         private DateTime StartupTime;
         private Configuration Configuration;
+        GpioController GPIO;
         private Clock Clock;
 
         private bool ShouldSkipSample = true;
@@ -56,10 +58,23 @@ namespace AWS
                 return;
             }
 
+            GPIO = new GpioController(PinNumberingScheme.Logical);
+            GPIO.OpenPin(Configuration.DataLEDPin, PinMode.Output);
+            GPIO.OpenPin(Configuration.ErrorLEDPin, PinMode.Output);
+            GPIO.OpenPin(Configuration.PowerLEDPin, PinMode.Output);
+
+            GPIO.Write(Configuration.DataLEDPin, PinValue.High);
+            GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
+            GPIO.Write(Configuration.PowerLEDPin, PinValue.High);
+            Thread.Sleep(2500);
+            GPIO.Write(Configuration.DataLEDPin, PinValue.Low);
+            GPIO.Write(Configuration.ErrorLEDPin, PinValue.Low);
+            GPIO.Write(Configuration.PowerLEDPin, PinValue.Low);
+
             // Initialise clock
             try
             {
-                Clock = new Clock(Configuration);
+                Clock = new Clock(Configuration.ClockTickInterruptPin);
                 Clock.Ticked += Clock_Ticked;
 
                 LogEvent(Clock.DateTime, "Startup", "Initialised scheduling clock");
@@ -67,6 +82,7 @@ namespace AWS
             catch
             {
                 LogEvent("Startup", "Error while initialising scheduling clock");
+                GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
                 return;
             }
 
@@ -77,6 +93,7 @@ namespace AWS
             catch
             {
                 LogEvent(Clock.DateTime, "Startup", "Error while creating data directory");
+                GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
                 return;
             }
 
@@ -92,6 +109,7 @@ namespace AWS
             catch
             {
                 LogEvent(Clock.DateTime, "Startup", "Error while creating data database");
+                GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
                 return;
             }
 
@@ -108,14 +126,24 @@ namespace AWS
             catch
             {
                 LogEvent(Clock.DateTime, "Startup", "Error while creating transmit database");
+                GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
                 return;
             }
 
 
             InitialiseSensors();
 
+            GPIO.Write(Configuration.DataLEDPin, PinValue.High);
+            GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
+            GPIO.Write(Configuration.PowerLEDPin, PinValue.High);
+            Thread.Sleep(1000);
+            GPIO.Write(Configuration.DataLEDPin, PinValue.Low);
+            GPIO.Write(Configuration.ErrorLEDPin, PinValue.Low);
+            GPIO.Write(Configuration.PowerLEDPin, PinValue.Low);
+
             Clock.Start();
             LogEvent(Clock.DateTime, "Startup", "Started scheduling clock");
+
             Console.ReadKey();
         }
         private void InitialiseSensors()
@@ -240,6 +268,10 @@ namespace AWS
         }
         private void LogReport(DateTime time)
         {
+            Stopwatch ledStopwatch = new Stopwatch();
+            ledStopwatch.Start();
+
+            GPIO.Write(Configuration.DataLEDPin, PinValue.High);
             Report report = new Report(time);
 
             //// Rainfall sensor
@@ -259,6 +291,13 @@ namespace AWS
                 Math.Round((double)report.RelativeHumidity, 2), Math.Round((double)report.StationPressure, 2)));
 
             Database.WriteReport(report);
+
+            // Ensure the data LED stays on for at least 1.5 seconds
+            ledStopwatch.Stop();
+            if (ledStopwatch.ElapsedMilliseconds < 1500)
+                Thread.Sleep(1500 - (int)ledStopwatch.ElapsedMilliseconds);
+
+            GPIO.Write(Configuration.DataLEDPin, PinValue.Low);
         }
         private void TransmitReports(DateTime now)
         {

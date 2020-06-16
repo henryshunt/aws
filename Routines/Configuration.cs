@@ -31,8 +31,15 @@ namespace AWS.Routines
         }
 
 
-        [JsonProperty("schedulingClockPin")]
-        public int SchedulingClockPin { get; set; }
+        [JsonProperty("dataLEDPin")]
+        public int DataLEDPin { get; set; }
+        [JsonProperty("errorLEDPin")]
+        public int ErrorLEDPin { get; set; }
+        [JsonProperty("powerLEDPin")]
+        public int PowerLEDPin { get; set; }
+
+        [JsonProperty("clockTickInterruptPin")]
+        public int ClockTickInterruptPin { get; set; }
 
         [JsonProperty("logger")]
         public LoggerJSON Logger { get; set; }
