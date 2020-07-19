@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Threading;
@@ -7,58 +9,69 @@ namespace AWS.Hardware.Sensors
 {
     internal class Satellite
     {
-        private SerialPort Device;
+        private SerialPort device;
+        public SatelliteSample LatestSample { get; private set; }
 
         public void Initialise(int id, SatelliteConfiguration configuration)
         {
+            bool foundDevice = false;
             foreach (string serialPort in SerialPort.GetPortNames())
             {
-                if (!serialPort.StartsWith("/dev/ttyUSB")) continue; // Ignore the internal port
-                Console.WriteLine(serialPort);
-                SerialPort port = new SerialPort(serialPort);
+                if (!serialPort.StartsWith("/dev/ttyUSB")) continue;
 
-                //try
-                //{
-                port.Open();
-                Thread.Sleep(1800);
-                string response = SendCommand(port, "PING\n");
+                SerialPort device = new SerialPort(serialPort);
 
-                if (response != null)
+                try
                 {
-                    if (response.StartsWith("PING ") && int.Parse(response.Replace("PING ", "")) == id)
-                    {
-                        Console.WriteLine("found");
-                        Device = port;
-                        Console.WriteLine(SendCommand(port, "CONFIG " + configuration.ToString() + "\n"));
-                        break;
-                    }
-                }
+                    device.Open();
+                    Thread.Sleep(2000); // Wait for the Arduino to reset after connecting
 
-                port.Close();
-                //}
-                //catch
-                //{
-                //    port.Close();
-                //    continue;
-                //}
+                    string response = SendCommand(device, "PING\n");
+                    if (response != null)
+                    {
+                        if (response.StartsWith("PING ") && int.Parse(response.Replace("PING ", "")) == id)
+                        {
+                            foundDevice = true;
+                            this.device = device;
+
+                            SendCommand(device, "CONFIG " + configuration.ToString() + "\n");
+                            break;
+                        }
+                    }
+
+                    device.Close();
+                }
+                catch (Exception ex)
+                {
+                    device.Close();
+                    throw ex;
+                }
             }
+
+            if (!foundDevice) throw new Exception();
         }
 
         public void StartSensors()
         {
-            Console.WriteLine("test2");
-            string response = SendCommand(Device, "START\n");
+            string response = SendCommand(device, "START\n");
             Console.WriteLine(response);
         }
 
-        public void ReadSensors()
+        public Thread SampleSensors()
         {
-            new Thread(() =>
+            Thread thread = new Thread(() =>
             {
+                string response = SendCommand(device, "SAMPLE\n").Replace("SAMPLE ", "");
 
-            }).Start();
-            string response = SendCommand(Device, "SAMPLE\n");
-            //Console.WriteLine(response);
+                JsonSerializerSettings settings = new JsonSerializerSettings();
+                settings.MissingMemberHandling = MissingMemberHandling.Error;
+
+                SatelliteSample sample = JsonConvert.DeserializeObject<SatelliteSample>(response, settings);
+                LatestSample = sample;
+            });
+
+            thread.Start();
+            return thread;
         }
 
         private string SendCommand(SerialPort serialPort, string command)
@@ -115,6 +128,15 @@ namespace AWS.Hardware.Sensors
                 result += "}";
                 return result;
             }
+        }
+
+        public class SatelliteSample
+        {
+            [JsonProperty("windSpeed")]
+            public double? WindSpeed { get; set; } = null;
+
+            [JsonProperty("windDirection")]
+            public double? WindDirection { get; set; } = null;
         }
     }
 }

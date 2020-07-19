@@ -131,7 +131,7 @@ namespace AWS
             }
 
 
-            InitialiseSensors();
+            if (!InitialiseSensors()) return;
 
             GPIO.Write(Configuration.DataLEDPin, PinValue.High);
             GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
@@ -146,7 +146,7 @@ namespace AWS
 
             Console.ReadKey();
         }
-        private void InitialiseSensors()
+        private bool InitialiseSensors()
         {
             // Create a blank configuration for each satellite mentioned in the main configuration
             Dictionary<int, SatelliteConfiguration> satConfigs = new Dictionary<int, SatelliteConfiguration>();
@@ -165,17 +165,17 @@ namespace AWS
             //    else BME680Sensor.Initialise(false);
             //}
 
-            //if (Configuration.Sensors.WindSpeed.Enabled)
-            //{
-            //    int? satelliteId = Configuration.Sensors.WindSpeed.SatelliteID;
-            //    if (satelliteId != null)
-            //    {
-            //        satConfigs[(int)satelliteId].WindSpeedEnabled = true;
-            //        satConfigs[(int)satelliteId].WindSpeedPin = (int)Configuration.Sensors.WindSpeed.Pin;
-            //        WindSpeedSensor.Initialise();
-            //    }
-            //    else WindSpeedSensor.Initialise((int)Configuration.Sensors.WindSpeed.Pin);
-            //}
+            if (Configuration.Sensors.WindSpeed.Enabled)
+            {
+                int? satelliteId = Configuration.Sensors.WindSpeed.SatelliteID;
+                if (satelliteId != null)
+                {
+                    satConfigs[(int)satelliteId].WindSpeedEnabled = true;
+                    satConfigs[(int)satelliteId].WindSpeedPin = (int)Configuration.Sensors.WindSpeed.Pin;
+                    WindSpeedSensor.Initialise();
+                }
+                //else WindSpeedSensor.Initialise((int)Configuration.Sensors.WindSpeed.Pin);
+            }
 
             //if (Configuration.Sensors.WindDirection.Enabled)
             //{
@@ -203,12 +203,25 @@ namespace AWS
 
 
             // Initialise each satellite with its finalised configurations
-            //foreach (int satelliteId in Configuration.Sensors.SatelliteIDs)
-            //{
-            //    Satellite satellite = new Satellite();
-            //    satellite.Initialise(satelliteId, satConfigs[satelliteId]);
-            //    Satellites.Add(satelliteId, satellite);
-            //}
+            foreach (int satelliteId in Configuration.Sensors.SatelliteIDs)
+            {
+                Satellite satellite = new Satellite();
+
+                try
+                {
+                    satellite.Initialise(satelliteId, satConfigs[satelliteId]);
+                }
+                catch
+                {
+                    LogEvent(Clock.DateTime, "Startup", "Error while initialising satellite");
+                    GPIO.Write(Configuration.ErrorLEDPin, PinValue.High);
+                    return false;
+                }
+
+                Satellites.Add(satelliteId, satellite);
+            }
+
+            return true;
         }
 
         private void Clock_Ticked(object sender, ClockTickedEventArgs e)
@@ -246,10 +259,9 @@ namespace AWS
 
         private void SampleSensors(DateTime time, bool isFirstSample)
         {
-            //foreach (KeyValuePair<int, Satellite> satellite in Satellites)
-            //{
-            //    satellite.Value.ReadSensors();
-            //}
+            List<Thread> satelliteThreads = new List<Thread>();
+            foreach (Satellite satellite in Satellites.Values)
+                satelliteThreads.Add(satellite.SampleSensors());
 
             if (time.Second == 0)
             {
@@ -261,10 +273,23 @@ namespace AWS
                 BME680Sensor.PressureStore.SwapValueBucket();
             }
 
-            Thread BME680Thread = BME680Sensor.SampleDevice();
+            Thread BME680Thread = BME680Sensor.SampleSensor();
 
             // Don't continue until all sensors have completed sampling
             BME680Thread.Join();
+
+            foreach (Thread thread in satelliteThreads)
+                thread.Join();
+
+            foreach (Satellite satellite in Satellites.Values)
+            {
+                WindSpeedSensor.WindSpeedStore.ActiveValueBucket.Add(
+                    new KeyValuePair<DateTime, int>(time, (int)satellite.LatestSample.WindSpeed));
+
+                Console.WriteLine(string.Format(
+                    "Wind Speed: {0}, Wind Direction: {1}", satellite.LatestSample.WindSpeed,
+                    satellite.LatestSample.WindDirection));
+            }
         }
         private void LogReport(DateTime time)
         {

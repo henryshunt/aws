@@ -29,7 +29,7 @@ namespace AWS.Hardware.Sensors
             }
         }
 
-        public Thread SampleDevice()
+        public Thread SampleSensor()
         {
             Thread thread = new Thread(() =>
             {
