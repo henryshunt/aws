@@ -1,11 +1,10 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Threading;
 
-namespace AWS.Hardware.Sensors
+namespace AWS.Hardware
 {
     internal class Satellite
     {
@@ -100,43 +99,6 @@ namespace AWS.Hardware.Sensors
             }
 
             return response;
-        }
-
-        public class SatelliteConfiguration
-        {
-            public bool AirTemperatureEnabled { get; set; } = false;
-            public bool WindSpeedEnabled { get; set; } = false;
-            public int WindSpeedPin { get; set; }
-            public bool WindDirectionEnabled { get; set; } = false;
-            public int WindDirectionPin { get; set; }
-            public bool RainfallEnabled { get; set; } = false;
-            public int RainfallPin { get; set; }
-
-
-            public override string ToString()
-            {
-                string result = "";
-
-                result += "{\"windSpeedEnabled\":" + WindSpeedEnabled.ToString().ToLower();
-                if (WindSpeedEnabled)
-                    result += ",\"windSpeedPin\":" + WindSpeedPin.ToString().ToLower();
-
-                result += ",\"windDirectionEnabled\":" + WindDirectionEnabled.ToString().ToLower();
-                if (WindDirectionEnabled)
-                    result += ",\"windDirectionPin\":" + WindDirectionPin.ToString().ToLower();
-
-                result += "}";
-                return result;
-            }
-        }
-
-        public class SatelliteSample
-        {
-            [JsonProperty("windSpeed")]
-            public double? WindSpeed { get; set; } = null;
-
-            [JsonProperty("windDirection")]
-            public double? WindDirection { get; set; } = null;
         }
     }
 }

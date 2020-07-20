@@ -3,7 +3,7 @@ using System;
 using System.Device.Gpio;
 using System.Device.I2c;
 
-namespace AWS.Routines
+namespace AWS.Core
 {
     internal class Clock
     {

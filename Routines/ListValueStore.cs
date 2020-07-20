@@ -1,10 +1,11 @@
-﻿using static AWS.Routines.Helpers;
+﻿using System.Collections.Generic;
+using static AWS.Routines.Helpers;
 
-namespace AWS.Hardware.Sensors
+namespace AWS.Routines
 {
-    internal class CounterValueStore
+    internal class ListValueStore<T>
     {
-        public int ActiveValueBucket
+        public List<T> ActiveValueBucket
         {
             get
             {
@@ -12,14 +13,8 @@ namespace AWS.Hardware.Sensors
                     return ValueBucket1;
                 else return ValueBucket2;
             }
-            set
-            {
-                if (ValueBucketInUse == ValueBucket.Bucket1)
-                    ValueBucket1 = value;
-                else ValueBucket2 = value;
-            }
         }
-        public int InactiveValueBucket
+        public List<T> InactiveValueBucket
         {
             get
             {
@@ -27,18 +22,12 @@ namespace AWS.Hardware.Sensors
                     return ValueBucket2;
                 else return ValueBucket1;
             }
-            set
-            {
-                if (ValueBucketInUse == ValueBucket.Bucket1)
-                    ValueBucket2 = value;
-                else ValueBucket1 = value;
-            }
         }
 
         private ValueBucket ValueBucketInUse = ValueBucket.Bucket1;
 
-        private int ValueBucket1 = 0;
-        private int ValueBucket2 = 0;
+        private readonly List<T> ValueBucket1 = new List<T>();
+        private readonly List<T> ValueBucket2 = new List<T>();
 
         public void SwapValueBucket()
         {

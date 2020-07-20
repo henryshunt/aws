@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AWS.Routines
+namespace AWS.Core
 {
     internal class ClockTickedEventArgs : EventArgs
     {

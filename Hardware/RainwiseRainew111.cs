@@ -1,13 +1,15 @@
 ﻿using System.Device.Gpio;
 
-namespace AWS.Hardware.Sensors
+namespace AWS.Hardware
 {
     internal class RainwiseRainew111
     {
+        public static double MMPerBucketTip = 0.254;
+
         public bool ManualInputMode { get; private set; }
         public bool IsPaused = true;
 
-        public CounterValueStore RainfallStore { get; } = new CounterValueStore();
+        //public CounterValueStore RainfallStore { get; } = new CounterValueStore();
 
 
         public void Initialise()
@@ -26,7 +28,7 @@ namespace AWS.Hardware.Sensors
         private void OnInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
             if (IsPaused) return;
-            RainfallStore.ActiveValueBucket++;
+            //RainfallStore.ActiveValueBucket++;
         }
     }
 }
