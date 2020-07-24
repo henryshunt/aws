@@ -16,61 +16,58 @@ namespace AWS.Hardware
             bool foundDevice = false;
             foreach (string serialPort in SerialPort.GetPortNames())
             {
-                if (!serialPort.StartsWith("/dev/ttyUSB")) continue;
+                if (!serialPort.StartsWith("/dev/ttyUSB"))
+                    continue;
 
-                SerialPort device = new SerialPort(serialPort);
+                SerialPort device = new SerialPort(serialPort, 115200);
 
-                try
+                //try
+                //{
+                device.Open();
+                Thread.Sleep(2000); // Wait for the Arduino to reset after connecting
+
+                string response = SendCommand(device, "PING\n");
+                Console.WriteLine("PING: " + response);
+
+                if (response != null && response.Contains("AWS Satellite Device"))
                 {
-                    device.Open();
-                    Thread.Sleep(2000); // Wait for the Arduino to reset after connecting
+                    response = SendCommand(device, "ID\n");
+                    Console.WriteLine("ID: " + response);
 
-                    string response = SendCommand(device, "PING\n");
-                    if (response != null)
+                    if (int.Parse(response) == id)
                     {
-                        if (response.StartsWith("PING ") && int.Parse(response.Replace("PING ", "")) == id)
-                        {
-                            foundDevice = true;
-                            this.device = device;
+                        foundDevice = true;
+                        this.device = device;
 
-                            SendCommand(device, "CONFIG " + configuration.ToString() + "\n");
-                            break;
-                        }
+                        response = SendCommand(device, "CONFIG " + configuration.ToString() + "\n");
+                        Console.WriteLine("CONFIG: " + response);
+                        break;
                     }
+                }
 
-                    device.Close();
-                }
-                catch (Exception ex)
-                {
-                    device.Close();
-                    throw ex;
-                }
+                device.Close();
+                //}
+                //catch (Exception ex)
+                //{
+                //    device.Close();
+                //    throw ex;
+                //}
             }
 
-            if (!foundDevice) throw new Exception();
+            if (!foundDevice)
+                throw new Exception("Satellite device not found");
         }
 
-        public void StartSensors()
+        public void Sample()
         {
-            string response = SendCommand(device, "START\n");
-            Console.WriteLine(response);
-        }
+            string response = SendCommand(device, "SAMPLE\n");
+            //Console.WriteLine("SAMPLE: " + response);
 
-        public Thread SampleSensors()
-        {
-            Thread thread = new Thread(() =>
-            {
-                string response = SendCommand(device, "SAMPLE\n").Replace("SAMPLE ", "");
+            JsonSerializerSettings settings = new JsonSerializerSettings();
+            settings.MissingMemberHandling = MissingMemberHandling.Error;
 
-                JsonSerializerSettings settings = new JsonSerializerSettings();
-                settings.MissingMemberHandling = MissingMemberHandling.Error;
-
-                SatelliteSample sample = JsonConvert.DeserializeObject<SatelliteSample>(response, settings);
-                LatestSample = sample;
-            });
-
-            thread.Start();
-            return thread;
+            SatelliteSample sample = JsonConvert.DeserializeObject<SatelliteSample>(response, settings);
+            LatestSample = sample;
         }
 
         private string SendCommand(SerialPort serialPort, string command)
@@ -94,7 +91,7 @@ namespace AWS.Hardware
                     else responseEnded = true;
                 }
 
-                if (timeout.ElapsedMilliseconds >= 500)
+                if (timeout.ElapsedMilliseconds >= 100)
                     return null;
             }
 

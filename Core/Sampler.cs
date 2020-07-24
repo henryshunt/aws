@@ -1,7 +1,9 @@
 ﻿using AWS.Hardware;
 using AWS.Routines;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace AWS.Core
 {
@@ -16,13 +18,19 @@ namespace AWS.Core
         private ListValueStore<double> relativeHumidityStore = new ListValueStore<double>();
         private ListValueStore<double> pressureStore = new ListValueStore<double>();
 
-        private ListValueStore<double> windSpeedStore = new ListValueStore<double>();
-        private ListValueStore<double> windSpeedStore10Min = new ListValueStore<double>();
-        private ListValueStore<double> windDirectionStore = new ListValueStore<double>();
-        private ListValueStore<double> windDirectionStore10Min = new ListValueStore<double>();
+        private ListValueStore<KeyValuePair<DateTime, int>> windSpeedStore
+            = new ListValueStore<KeyValuePair<DateTime, int>>();
+        private ListValueStore<KeyValuePair<DateTime, double>> windSpeedStore10Min
+            = new ListValueStore<KeyValuePair<DateTime, double>>();
+        private ListValueStore<KeyValuePair<DateTime, int>> windDirectionStore
+            = new ListValueStore<KeyValuePair<DateTime, int>>();
+        private ListValueStore<KeyValuePair<DateTime, int>> windDirectionStore10Min
+            = new ListValueStore<KeyValuePair<DateTime, int>>();
 
         private RainwiseRainew111 rainGauge = new RainwiseRainew111();
         private CounterValueStore rainfallStore = new CounterValueStore();
+
+        private DateTime startTime;
 
         public Sampler(Configuration configuration)
         {
@@ -55,13 +63,52 @@ namespace AWS.Core
             satellite1.Initialise(2, satellite1Config);
         }
 
-        public void SampleSensors(DateTime time)
+        public void StartSensors(DateTime time)
         {
-            Tuple<double, double, double> bme680Sample = bme680.Sample();
+            startTime = time;
+            //WindSpeedSensor.IsPaused = false;
+            //RainfallSensor.IsPaused = false;
+        }
 
+        public void SampleSensors(DateTime time, bool isFirstSample)
+        {
+            satellite1.Sample();
+
+            if (satellite1.LatestSample.WindSpeed != null)
+            {
+                windSpeedStore.ActiveValueBucket.Add(
+                    new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindSpeed));
+            }
+
+            if (satellite1.LatestSample.WindDirection != null)
+            {
+                windDirectionStore.ActiveValueBucket.Add(
+                    new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindDirection));
+            }
+
+            Tuple<double, double, double> bme680Sample = bme680.Sample();
             temperatureStore.ActiveValueBucket.Add(bme680Sample.Item1);
             relativeHumidityStore.ActiveValueBucket.Add(bme680Sample.Item2);
             pressureStore.ActiveValueBucket.Add(bme680Sample.Item3);
+
+
+            if (time.Second == 59)
+            {
+                temperatureStore.SwapValueBucket();
+                relativeHumidityStore.SwapValueBucket();
+                pressureStore.SwapValueBucket();
+                windDirectionStore.SwapValueBucket();
+            }
+
+            if (time.Second == 0 && !isFirstSample)
+            {
+                windSpeedStore.SwapValueBucket();
+            }
+
+            //Console.WriteLine(
+            //    string.Format("air_temp: {0:0.00}, rel_hum: {1:0.00}, stat_pres: {2:0.00}, wind_speed: {3}, wind_dir: {4}",
+            //    bme680Sample.Item1, bme680Sample.Item2, bme680Sample.Item3, satellite1.LatestSample.WindSpeed,
+            //    satellite1.LatestSample.WindDirection));
         }
 
         public Helpers.Report GenerateReport(DateTime time)
@@ -75,11 +122,11 @@ namespace AWS.Core
             report.StationPressure = pressureStore.InactiveValueBucket.Average();
             pressureStore.InactiveValueBucket.Clear();
 
-            Console.WriteLine(string.Format("T: {0}   H: {1}   P: {2}", Math.Round((double)report.AirTemperature, 2),
-                Math.Round((double)report.RelativeHumidity, 2), Math.Round((double)report.StationPressure, 2)));
+            Console.WriteLine(string.Format("T: {0:0.00}, H: {1:0.00}, P: {2:0.00}", report.AirTemperature,
+                report.RelativeHumidity, report.StationPressure));
 
-            report.Rainfall = rainfallStore.InactiveValueBucket * RainwiseRainew111.MultiplicationFactor;
-            rainfallStore.InactiveValueBucket = 0;
+            //report.Rainfall = rainfallStore.InactiveValueBucket * RainwiseRainew111.MMPerBucketTip;
+            //rainfallStore.InactiveValueBucket = 0;
 
             return report;
         }
