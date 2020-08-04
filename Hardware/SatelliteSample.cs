@@ -11,6 +11,6 @@ namespace AWS.Hardware
         public double? WindSpeed { get; set; } = null;
 
         [JsonProperty("windDirection")]
-        public double? WindDirection { get; set; } = null;
+        public int? WindDirection { get; set; } = null;
     }
 }

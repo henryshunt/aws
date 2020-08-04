@@ -2,34 +2,22 @@
 using AWS.Routines;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 
 namespace AWS.Core
 {
     internal class Sampler
     {
         private Configuration configuration;
+        private DateTime startTime;
+
+        private SampleStoreAlternator sampleStore = new SampleStoreAlternator();
+        private Dictionary<DateTime, double> windSpeed10Min = new Dictionary<DateTime, double>();
+        private Dictionary<DateTime, int> windDirection10Min = new Dictionary<DateTime, int>();
 
         private Satellite satellite1 = new Satellite();
-
         private BME680 bme680 = new BME680();
-        private ListValueStore<double> temperatureStore = new ListValueStore<double>();
-        private ListValueStore<double> relativeHumidityStore = new ListValueStore<double>();
-        private ListValueStore<double> pressureStore = new ListValueStore<double>();
-
-        private ListValueStore<KeyValuePair<DateTime, int>> windSpeedStore
-            = new ListValueStore<KeyValuePair<DateTime, int>>();
-        private Dictionary<DateTime, double> windSpeedStore10Min = new Dictionary<DateTime, double>();
-        private ListValueStore<KeyValuePair<DateTime, int>> windDirectionStore
-            = new ListValueStore<KeyValuePair<DateTime, int>>();
-        private Dictionary<DateTime, int> windDirectionStore10Min = new Dictionary<DateTime, int>();
-
         private RainwiseRainew111 rainGauge = new RainwiseRainew111();
-        private CounterValueStore rainfallStore = new CounterValueStore();
-
-        private DateTime startTime;
 
         public Sampler(Configuration configuration)
         {
@@ -37,7 +25,7 @@ namespace AWS.Core
         }
 
 
-        public void InitialiseSensors()
+        public void Initialise()
         {
             SatelliteConfiguration satellite1Config = new SatelliteConfiguration();
 
@@ -62,7 +50,7 @@ namespace AWS.Core
             satellite1.Initialise(1, satellite1Config);
         }
 
-        public void StartSensors(DateTime time)
+        public void Start(DateTime time)
         {
             startTime = time;
 
@@ -71,65 +59,72 @@ namespace AWS.Core
             //RainfallSensor.IsPaused = false;
         }
 
-        public void SampleSensors(DateTime time)
+        public void Sample(DateTime time)
         {
             satellite1.Sample();
 
             if (satellite1.LatestSample.WindSpeed != null)
             {
-                windSpeedStore.ActiveValueBucket.Add(
+                sampleStore.ActiveSampleStore.WindSpeed.Add(
                     new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindSpeed));
             }
 
             if (satellite1.LatestSample.WindDirection != null)
             {
-                windDirectionStore.ActiveValueBucket.Add(
+                sampleStore.ActiveSampleStore.WindDirection.Add(
                     new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindDirection));
             }
 
             Tuple<double, double, double> bme680Sample = bme680.Sample();
-            temperatureStore.ActiveValueBucket.Add(bme680Sample.Item1);
-            relativeHumidityStore.ActiveValueBucket.Add(bme680Sample.Item2);
-            pressureStore.ActiveValueBucket.Add(bme680Sample.Item3);
-
-
-            if (time.Second == 0)
-                SwapValueBuckets();
+            sampleStore.ActiveSampleStore.AirTemperature.Add(bme680Sample.Item1);
+            sampleStore.ActiveSampleStore.RelativeHumidity.Add(bme680Sample.Item2);
+            sampleStore.ActiveSampleStore.StationPressure.Add(bme680Sample.Item3);
         }
 
-        private void SwapValueBuckets()
+        public Report Report(DateTime time)
         {
-            temperatureStore.SwapValueBucket();
-            relativeHumidityStore.SwapValueBucket();
-            windSpeedStore.SwapValueBucket();
-            windDirectionStore.SwapValueBucket();
-            pressureStore.SwapValueBucket();
+            sampleStore.SwapSampleStore();
+
+            Report report = new Report(time);
+            report.AirTemperature = sampleStore.InactiveSampleStore.AirTemperature.Average();
+            report.RelativeHumidity = sampleStore.InactiveSampleStore.RelativeHumidity.Average();
+            report.StationPressure = sampleStore.InactiveSampleStore.StationPressure.Average();
+
+            Tuple<double, double, double> windCalculations = ProcessWindData(time);
+            report.WindSpeed = windCalculations.Item1;
+            report.WindDirection = windCalculations.Item2;
+            report.WindGustSpeed = windCalculations.Item3;
+
+            Console.WriteLine(string.Format("T: {0:0.00}, H: {1:0.00}, P: {2:0.00}, WS: {3:0.00}, WD: {4} WG: {5:0.00}",
+                report.AirTemperature, report.RelativeHumidity, report.StationPressure, report.WindSpeed,
+                report.WindDirection, report.WindGustSpeed));
+
+            sampleStore.InactiveSampleStore.Clear();
+            return report;
         }
 
         private Tuple<double, double, double> ProcessWindData(DateTime time)
         {
             // Add the new samples from the past minute to the 10-minute storage
-            foreach (KeyValuePair<DateTime, int> kvp in windSpeedStore.InactiveValueBucket)
-                windSpeedStore10Min.Add(kvp.Key, kvp.Value * 0.31);
-            windSpeedStore.InactiveValueBucket.Clear();
+            foreach (KeyValuePair<DateTime, int> kvp in sampleStore.InactiveSampleStore.WindSpeed)
+                windSpeed10Min.Add(kvp.Key, kvp.Value * 0.31);
 
-            foreach (KeyValuePair<DateTime, int> kvp in windDirectionStore.InactiveValueBucket)
-                windDirectionStore10Min.Add(kvp.Key, kvp.Value);
-            windDirectionStore.InactiveValueBucket.Clear();
+            foreach (KeyValuePair<DateTime, int> kvp in sampleStore.InactiveSampleStore.WindDirection)
+                windDirection10Min.Add(kvp.Key, kvp.Value);
 
 
             // Remove samples older than 10 minutes from the 10-minute storage
             List<KeyValuePair<DateTime, double>> toRemove =
-                windSpeedStore10Min.Where(kvp => kvp.Key < time - TimeSpan.FromMinutes(10)).ToList();
+                windSpeed10Min.Where(kvp => kvp.Key < time - TimeSpan.FromMinutes(10)).ToList();
 
             foreach (var i in toRemove)
-                windSpeedStore10Min.Remove(i.Key);
+                windSpeed10Min.Remove(i.Key);
 
             List<KeyValuePair<DateTime, int>> toRemove2 =
-                windDirectionStore10Min.Where(kvp => kvp.Key < time - TimeSpan.FromMinutes(10)).ToList();
+                windDirection10Min.Where(kvp => kvp.Key < time - TimeSpan.FromMinutes(10)).ToList();
 
             foreach (var i in toRemove)
-                windDirectionStore10Min.Remove(i.Key);
+                windDirection10Min.Remove(i.Key);
 
             DateTime tenago = time - TimeSpan.FromMinutes(10);
             time = time - TimeSpan.FromMinutes(10);
@@ -141,7 +136,7 @@ namespace AWS.Core
             {
                 try
                 {
-                    var t = windSpeedStore10Min.Where(x =>
+                    var t = windSpeed10Min.Where(x =>
                         x.Key > time + TimeSpan.FromSeconds(i) && x.Key <= time + TimeSpan.FromSeconds(i + 3));
 
                     double gust = t.Average(x => x.Value);
@@ -158,36 +153,10 @@ namespace AWS.Core
 
 
 
-            double windSpeed = windSpeedStore10Min.Average(x => x.Value);
+            double windSpeed = windSpeed10Min.Average(x => x.Value);
             double windDirection = 0;
 
             return new Tuple<double, double, double>(windSpeed, windDirection, windGust);
-        }
-
-        public Helpers.Report GenerateReport(DateTime time)
-        {
-            Helpers.Report report = new Helpers.Report(time);
-
-            report.AirTemperature = temperatureStore.InactiveValueBucket.Average();
-            temperatureStore.InactiveValueBucket.Clear();
-            report.RelativeHumidity = relativeHumidityStore.InactiveValueBucket.Average();
-            relativeHumidityStore.InactiveValueBucket.Clear();
-            report.StationPressure = pressureStore.InactiveValueBucket.Average();
-            pressureStore.InactiveValueBucket.Clear();
-
-            Tuple<double, double, double> wind = ProcessWindData(time);
-            report.WindSpeed = wind.Item1;
-            report.WindDirection = (int)Math.Round(wind.Item2);
-            report.WindGustSpeed = wind.Item3;
-
-            Console.WriteLine(string.Format("T: {0:0.00}, H: {1:0.00}, P: {2:0.00}, WS: {3:0.00}, WD: {4} WG: {5}",
-                report.AirTemperature, report.RelativeHumidity, report.StationPressure, report.WindSpeed,
-                report.WindDirection, report.WindGustSpeed));
-
-            //report.Rainfall = rainfallStore.InactiveValueBucket * RainwiseRainew111.MMPerBucketTip;
-            //rainfallStore.InactiveValueBucket = 0;
-
-            return report;
         }
     }
 }

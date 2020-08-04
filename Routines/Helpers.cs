@@ -39,45 +39,5 @@ namespace AWS.Routines
             Shutdown,  // Terminates the software and shuts down the station computer
             Restart    // Terminates the software and restarts the station computer
         }
-
-        public enum SamplingBucket { Bucket1, Bucket2 }
-        public enum ValueBucket { Bucket1, Bucket2 }
-
-        public class Report
-        {
-            public DateTime Time { get; set; }
-            public double? AirTemperature { get; set; } = null;
-            public double? RelativeHumidity { get; set; } = null;
-            public float? DewPoint { get; set; } = null;
-            public double? WindSpeed { get; set; } = null;
-            public int? WindDirection { get; set; } = null;
-            public double? WindGustSpeed { get; set; } = null;
-            public float? WindGustDirection { get; set; } = null;
-            public double? Rainfall { get; set; } = null;
-            public double? StationPressure { get; set; } = null;
-            public float? MSLPressure { get; set; } = null;
-            public float? SoilTemperature10 { get; set; } = null;
-            public float? SoilTemperature30 { get; set; } = null;
-            public float? SoilTemperature100 { get; set; } = null;
-
-            public Report(DateTime time)
-            {
-                Time = time;
-            }
-        }
-
-        public static SamplingBucket InvertSamplingBucket(SamplingBucket samplingBucket)
-        {
-            if (samplingBucket == SamplingBucket.Bucket1)
-                return SamplingBucket.Bucket2;
-            else return SamplingBucket.Bucket1;
-        }
-
-        public static ValueBucket InvertValueBucket(ValueBucket valueBucket)
-        {
-            if (valueBucket == ValueBucket.Bucket1)
-                return ValueBucket.Bucket2;
-            else return ValueBucket.Bucket1;
-        }
     }
 }

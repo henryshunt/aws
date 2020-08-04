@@ -111,7 +111,7 @@ namespace AWS.Core
             //try
             //{
             sampler = new Sampler(configuration);
-            sampler.InitialiseSensors();
+            sampler.Initialise();
             //}
             //catch (Exception ex)
             //{
@@ -146,13 +146,13 @@ namespace AWS.Core
                 if (e.Time.Second == 0)
                 {
                     startedSampling = true;
-                    sampler.StartSensors(e.Time);
+                    sampler.Start(e.Time);
                 }
 
                 return;
             }
 
-            sampler.SampleSensors(e.Time);
+            sampler.Sample(e.Time);
 
             // Run at the start of all minutes except the first
             if (e.Time.Second == 0)
@@ -172,7 +172,7 @@ namespace AWS.Core
 
             gpio.Write(configuration.DataLedPin, PinValue.High);
 
-            Report report = sampler.GenerateReport(time);
+            Report report = sampler.Report(time);
             Database.WriteReport(report);
 
             // Ensure the data LED stays on for at least 1.5 seconds
