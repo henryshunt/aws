@@ -49,9 +49,9 @@ namespace AWS.Routines
             public double? AirTemperature { get; set; } = null;
             public double? RelativeHumidity { get; set; } = null;
             public float? DewPoint { get; set; } = null;
-            public float? WindSpeed { get; set; } = null;
-            public float? WindDirection { get; set; } = null;
-            public float? WindGustSpeed { get; set; } = null;
+            public double? WindSpeed { get; set; } = null;
+            public int? WindDirection { get; set; } = null;
+            public double? WindGustSpeed { get; set; } = null;
             public float? WindGustDirection { get; set; } = null;
             public double? Rainfall { get; set; } = null;
             public double? StationPressure { get; set; } = null;

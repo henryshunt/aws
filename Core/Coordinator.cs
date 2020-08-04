@@ -143,7 +143,7 @@ namespace AWS.Core
             bool shouldSkipLog = false;
             bool isFirstSample = false;
 
-            // Start sampling at the top of the first minute
+            // Start sampling at the start of the next minute
             if (shouldSkipSample && e.Time.Second == 0)
             {
                 shouldSkipSample = false;
@@ -158,7 +158,7 @@ namespace AWS.Core
 
             sampler.SampleSensors(e.Time, isFirstSample);
 
-            // Run at the top of all minutes except the first
+            // Run at the start of all minutes except the first
             if (e.Time.Second == 0 && !shouldSkipLog)
             {
                 new Thread(() =>
