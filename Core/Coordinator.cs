@@ -16,7 +16,7 @@ namespace AWS.Core
 
         private DateTime startupTime;
         private GpioController gpio;
-        private bool shouldSkipSample = true;
+        private bool startedSampling = false;
 
 
         public void Startup()
@@ -140,26 +140,22 @@ namespace AWS.Core
 
         private void Clock_Ticked(object sender, ClockTickedEventArgs e)
         {
-            bool shouldSkipLog = false;
-            bool isFirstSample = false;
-
             // Start sampling at the start of the next minute
-            if (shouldSkipSample && e.Time.Second == 0)
+            if (!startedSampling)
             {
-                shouldSkipSample = false;
-                shouldSkipLog = true;
-                isFirstSample = true;
+                if (e.Time.Second == 0)
+                {
+                    startedSampling = true;
+                    sampler.StartSensors(e.Time);
+                }
 
-                sampler.StartSensors(e.Time);
+                return;
             }
 
-            if (shouldSkipSample)
-                return;
-
-            sampler.SampleSensors(e.Time, isFirstSample);
+            sampler.SampleSensors(e.Time);
 
             // Run at the start of all minutes except the first
-            if (e.Time.Second == 0 && !shouldSkipLog)
+            if (e.Time.Second == 0)
             {
                 new Thread(() =>
                 {

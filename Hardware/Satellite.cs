@@ -58,6 +58,16 @@ namespace AWS.Hardware
                 throw new Exception("Satellite device not found");
         }
 
+        public bool Start()
+        {
+            if (SendCommand(device, "START\n") == "OK")
+            {
+                Console.WriteLine("started");
+                return true;
+            }
+            else return false;
+        }
+
         public void Sample()
         {
             string response = SendCommand(device, "SAMPLE\n");

@@ -65,27 +65,26 @@ namespace AWS.Core
         public void StartSensors(DateTime time)
         {
             startTime = time;
-            //WindSpeedSensor.IsPaused = false;
+
+            satellite1.Start();
+
             //RainfallSensor.IsPaused = false;
         }
 
-        public void SampleSensors(DateTime time, bool isFirstSample)
+        public void SampleSensors(DateTime time)
         {
             satellite1.Sample();
 
-            if (!isFirstSample)
+            if (satellite1.LatestSample.WindSpeed != null)
             {
-                if (satellite1.LatestSample.WindSpeed != null)
-                {
-                    windSpeedStore.ActiveValueBucket.Add(
-                        new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindSpeed));
-                }
+                windSpeedStore.ActiveValueBucket.Add(
+                    new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindSpeed));
+            }
 
-                if (satellite1.LatestSample.WindDirection != null)
-                {
-                    windDirectionStore.ActiveValueBucket.Add(
-                        new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindDirection));
-                }
+            if (satellite1.LatestSample.WindDirection != null)
+            {
+                windDirectionStore.ActiveValueBucket.Add(
+                    new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindDirection));
             }
 
             Tuple<double, double, double> bme680Sample = bme680.Sample();
@@ -94,23 +93,17 @@ namespace AWS.Core
             pressureStore.ActiveValueBucket.Add(bme680Sample.Item3);
 
 
-            if (time.Second == 59)
-            {
-                temperatureStore.SwapValueBucket();
-                relativeHumidityStore.SwapValueBucket();
-                pressureStore.SwapValueBucket();
-            }
+            if (time.Second == 0)
+                SwapValueBuckets();
+        }
 
-            if (time.Second == 0 && !isFirstSample)
-            {
-                windSpeedStore.SwapValueBucket();
-                windDirectionStore.SwapValueBucket();
-            }
-
-            //Console.WriteLine(
-            //    string.Format("air_temp: {0:0.00}, rel_hum: {1:0.00}, stat_pres: {2:0.00}, wind_speed: {3}, wind_dir: {4}",
-            //    bme680Sample.Item1, bme680Sample.Item2, bme680Sample.Item3, satellite1.LatestSample.WindSpeed,
-            //    satellite1.LatestSample.WindDirection));
+        private void SwapValueBuckets()
+        {
+            temperatureStore.SwapValueBucket();
+            relativeHumidityStore.SwapValueBucket();
+            windSpeedStore.SwapValueBucket();
+            windDirectionStore.SwapValueBucket();
+            pressureStore.SwapValueBucket();
         }
 
         private Tuple<double, double, double> ProcessWindData(DateTime time)
