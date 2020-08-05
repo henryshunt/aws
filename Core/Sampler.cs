@@ -47,7 +47,8 @@ namespace AWS.Core
             if (configuration.Sensors.Rainfall.Enabled)
                 rainGauge.Initialise((int)configuration.Sensors.Rainfall.Pin);
 
-            satellite1.Initialise(1, satellite1Config);
+            if (!satellite1.Initialise(1, satellite1Config))
+                Console.WriteLine("Satellite fail");
         }
 
         public void Start(DateTime time)
@@ -61,18 +62,19 @@ namespace AWS.Core
 
         public void Sample(DateTime time)
         {
-            satellite1.Sample();
-
-            if (satellite1.LatestSample.WindSpeed != null)
+            if (satellite1.Sample())
             {
-                sampleStore.ActiveSampleStore.WindSpeed.Add(
-                    new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindSpeed));
-            }
+                if (satellite1.LatestSample.WindSpeed != null)
+                {
+                    sampleStore.ActiveSampleStore.WindSpeed.Add(
+                        new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindSpeed));
+                }
 
-            if (satellite1.LatestSample.WindDirection != null)
-            {
-                sampleStore.ActiveSampleStore.WindDirection.Add(
-                    new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindDirection));
+                if (satellite1.LatestSample.WindDirection != null)
+                {
+                    sampleStore.ActiveSampleStore.WindDirection.Add(
+                        new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindDirection));
+                }
             }
 
             Tuple<double, double, double> bme680Sample = bme680.Sample();

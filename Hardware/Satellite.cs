@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Threading;
@@ -11,101 +10,107 @@ namespace AWS.Hardware
         private SerialPort device;
         public SatelliteSample LatestSample { get; private set; }
 
-        public void Initialise(int id, SatelliteConfiguration configuration)
+        public bool Initialise(int id, SatelliteConfiguration configuration)
         {
-            bool foundDevice = false;
             foreach (string serialPort in SerialPort.GetPortNames())
             {
                 if (!serialPort.StartsWith("/dev/ttyUSB"))
                     continue;
 
-                SerialPort device = new SerialPort(serialPort, 115200);
+                SerialPort device = null;
 
-                //try
-                //{
-                device.Open();
+                try
+                {
+                    device = new SerialPort(serialPort, 115200);
+                    device.Open();
+                }
+                catch { continue; }
+
                 Thread.Sleep(2000); // Wait for the Arduino to reset after connecting
 
                 string response = SendCommand(device, "PING\n");
-                Console.WriteLine("PING: " + response);
 
+                // We use Contains() because the first transmission from the device sometimes has
+                // extra characters at the ends
                 if (response != null && response.Contains("AWS Satellite Device"))
                 {
                     response = SendCommand(device, "ID\n");
-                    Console.WriteLine("ID: " + response);
 
-                    if (int.Parse(response) == id)
+                    try
                     {
-                        foundDevice = true;
-                        this.device = device;
+                        if (int.Parse(response) == id)
+                        {
+                            response = SendCommand(device, "CONFIG " + configuration.ToString() + "\n");
 
-                        response = SendCommand(device, "CONFIG " + configuration.ToString() + "\n");
-                        Console.WriteLine("CONFIG: " + response);
-                        break;
+                            if (response == "OK")
+                            {
+                                this.device = device;
+                                break;
+                            }
+                        }
                     }
+                    catch { }
                 }
 
                 device.Close();
-                //}
-                //catch (Exception ex)
-                //{
-                //    device.Close();
-                //    throw ex;
-                //}
             }
 
-            if (!foundDevice)
-                throw new Exception("Satellite device not found");
+            return device != null;
         }
 
         public bool Start()
         {
-            if (SendCommand(device, "START\n") == "OK")
-            {
-                Console.WriteLine("started");
-                return true;
-            }
-            else return false;
+            return SendCommand(device, "START\n") == "OK";
         }
 
-        public void Sample()
+        public bool Sample()
         {
             string response = SendCommand(device, "SAMPLE\n");
-            //Console.WriteLine("SAMPLE: " + response);
 
-            JsonSerializerSettings settings = new JsonSerializerSettings();
-            settings.MissingMemberHandling = MissingMemberHandling.Error;
+            if (response == null || response == "ERROR")
+                return false;
 
-            SatelliteSample sample = JsonConvert.DeserializeObject<SatelliteSample>(response, settings);
-            LatestSample = sample;
+            try
+            {
+                JsonSerializerSettings settings = new JsonSerializerSettings();
+                settings.MissingMemberHandling = MissingMemberHandling.Error;
+
+                LatestSample = JsonConvert.DeserializeObject<SatelliteSample>(response, settings);
+                return true;
+            }
+            catch { return false; }
         }
 
         private string SendCommand(SerialPort serialPort, string command)
         {
-            serialPort.Write(command);
-
-            string response = "";
-            bool responseEnded = false;
-
-            Stopwatch timeout = new Stopwatch();
-            timeout.Start();
-
-            while (!responseEnded)
+            try
             {
-                if (serialPort.BytesToRead > 0)
-                {
-                    char readChar = (char)serialPort.ReadChar();
+                serialPort.Write(command);
 
-                    if (readChar != '\n')
-                        response += readChar;
-                    else responseEnded = true;
+                string response = "";
+                bool responseEnded = false;
+
+                Stopwatch timeout = new Stopwatch();
+                timeout.Start();
+
+                while (!responseEnded)
+                {
+                    if (serialPort.BytesToRead > 0)
+                    {
+                        char readChar = (char)serialPort.ReadChar();
+
+                        if (readChar != '\n')
+                            response += readChar;
+                        else responseEnded = true;
+                    }
+
+                    if (timeout.ElapsedMilliseconds >= 100)
+                        return null;
                 }
 
-                if (timeout.ElapsedMilliseconds >= 100)
-                    return null;
+                return response;
             }
-
-            return response;
+            catch { return null; }
         }
     }
 }
