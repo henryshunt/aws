@@ -13,11 +13,8 @@ namespace AWS.Core
             string json = File.ReadAllText(filePath);
             Configuration config = JsonConvert.DeserializeObject<Configuration>(json, settings);
 
-            //// Create a list of satellite IDs from those referenced by the sensors
-            //if (config.Sensors.WindSpeed.SatelliteID != null)
-            //    config.Sensors.SatelliteIDs.Add((int)config.Sensors.WindSpeed.SatelliteID);
-            //if (config.Sensors.WindDirection.SatelliteID != null)
-            //    config.Sensors.SatelliteIDs.Add((int)config.Sensors.WindDirection.SatelliteID);
+            if (config.Sensors.Satellite1.WindSpeed.Enabled || config.Sensors.Satellite1.WindDirection.Enabled)
+                config.Sensors.Satellite1.Enabled = true;
 
             return config;
         }
@@ -66,42 +63,46 @@ namespace AWS.Core
             [JsonProperty("airTemperature")]
             public AirTemperatureJson AirTemperature { get; set; }
 
+            [JsonProperty("satellite1")]
+            public Satellite1Json Satellite1 { get; set; }
+
+            public class Satellite1Json
+            {
+                [JsonIgnore]
+                public bool Enabled { get; set; }
+
+                [JsonProperty("windSpeed")]
+                public WindSpeedJson WindSpeed { get; set; }
+
+                [JsonProperty("windDirection")]
+                public WindDirectionJson WindDirection { get; set; }
+            }
+
+            [JsonProperty("rainfall")]
+            public RainfallJson Rainfall { get; set; }
+
+
             internal class AirTemperatureJson
             {
                 [JsonProperty("enabled")]
                 public bool Enabled { get; set; }
             }
 
-            [JsonProperty("satellite1")]
-            public Satellite1Json Satellite1 { get; set; }
-
-            public class Satellite1Json
+            internal class WindSpeedJson
             {
-                [JsonProperty("windSpeed")]
-                public WindSpeedJson WindSpeed { get; set; }
-
-                internal class WindSpeedJson
-                {
-                    [JsonProperty("enabled")]
-                    public bool Enabled { get; set; }
-                    [JsonProperty("pin")]
-                    public int? Pin { get; set; }
-                }
-
-                [JsonProperty("windDirection")]
-                public WindDirectionJson WindDirection { get; set; }
-
-                internal class WindDirectionJson
-                {
-                    [JsonProperty("enabled")]
-                    public bool Enabled { get; set; }
-                    [JsonProperty("pin")]
-                    public int? Pin { get; set; }
-                }
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+                [JsonProperty("pin")]
+                public int? Pin { get; set; }
             }
 
-            [JsonProperty("rainfall")]
-            public RainfallJson Rainfall { get; set; }
+            internal class WindDirectionJson
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+                [JsonProperty("pin")]
+                public int? Pin { get; set; }
+            }
 
             internal class RainfallJson
             {
