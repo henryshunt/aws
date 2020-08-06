@@ -1,5 +1,6 @@
 ﻿using AWS.Hardware;
 using AWS.Routines;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,9 @@ namespace AWS.Core
 {
     internal class Sampler
     {
-        private Configuration configuration;
+        private static readonly Logger eventLogger = LogManager.GetCurrentClassLogger();
+
+        private Configuration config;
         private DateTime startTime;
 
         private SampleStoreAlternator sampleStore = new SampleStoreAlternator();
@@ -19,55 +22,88 @@ namespace AWS.Core
         private BME680 bme680 = new BME680();
         private RainwiseRainew111 rainGauge = new RainwiseRainew111();
 
-        public Sampler(Configuration configuration)
+        public Sampler(Configuration config)
         {
-            this.configuration = configuration;
+            this.config = config;
         }
 
 
-        public void Initialise()
+        public bool Initialise()
         {
-            if (configuration.Sensors.AirTemperature.Enabled)
-                bme680.Initialise();
+            if (config.Sensors.AirTemperature.Enabled)
+            {
+                try
+                {
+                    bme680.Initialise();
+                }
+                catch (Exception ex)
+                {
+                    eventLogger.Error(ex, "Failed to initialise BME680 sensor");
+                    return false;
+                }
+            }
 
-            if (configuration.Sensors.Satellite1.Enabled)
+            if (config.Sensors.Satellite1.Enabled)
             {
                 SatelliteConfiguration satelliteConfig = new SatelliteConfiguration();
 
-                if (configuration.Sensors.Satellite1.WindSpeed.Enabled)
+                if (config.Sensors.Satellite1.WindSpeed.Enabled)
                 {
                     satelliteConfig.WindSpeedEnabled = true;
-                    satelliteConfig.WindSpeedPin = (int)configuration.Sensors.Satellite1.WindSpeed.Pin;
+                    satelliteConfig.WindSpeedPin = (int)config.Sensors.Satellite1.WindSpeed.Pin;
                 }
 
-                if (configuration.Sensors.Satellite1.WindDirection.Enabled)
+                if (config.Sensors.Satellite1.WindDirection.Enabled)
                 {
                     satelliteConfig.WindDirectionEnabled = true;
-                    satelliteConfig.WindDirectionPin = (int)configuration.Sensors.Satellite1.WindDirection.Pin;
+                    satelliteConfig.WindDirectionPin = (int)config.Sensors.Satellite1.WindDirection.Pin;
                 }
 
-                if (!satellite1.Initialise(1, satelliteConfig))
-                    Console.WriteLine("Satellite fail");
+                try
+                {
+                    if (!satellite1.Initialise(1, satelliteConfig))
+                    {
+                        eventLogger.Error("Failed to initialise satellite device 1");
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    eventLogger.Error(ex, "Failed to initialise satellite device 1");
+                    return false;
+                }
             }
 
-            if (configuration.Sensors.Rainfall.Enabled)
-                rainGauge.Initialise((int)configuration.Sensors.Rainfall.Pin);
+            if (config.Sensors.Rainfall.Enabled)
+            {
+                try
+                {
+                    rainGauge.Initialise((int)config.Sensors.Rainfall.Pin);
+                }
+                catch (Exception ex)
+                {
+                    eventLogger.Error(ex, "Failed to initialise rain gauge");
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public void Start(DateTime time)
         {
             startTime = time;
 
-            if (configuration.Sensors.Satellite1.Enabled)
+            if (config.Sensors.Satellite1.Enabled)
                 satellite1.Start();
 
-            if (configuration.Sensors.Rainfall.Enabled)
+            if (config.Sensors.Rainfall.Enabled)
                 rainGauge.IsPaused = false;
         }
 
-        public void Sample(DateTime time)
+        public bool Sample(DateTime time)
         {
-            if (configuration.Sensors.Satellite1.Enabled && satellite1.Sample())
+            if (config.Sensors.Satellite1.Enabled && satellite1.Sample())
             {
                 if (satellite1.LatestSample.WindSpeed != null)
                 {
@@ -86,6 +122,8 @@ namespace AWS.Core
             sampleStore.ActiveSampleStore.AirTemperature.Add(bme680Sample.Item1);
             sampleStore.ActiveSampleStore.RelativeHumidity.Add(bme680Sample.Item2);
             sampleStore.ActiveSampleStore.StationPressure.Add(bme680Sample.Item3);
+
+            return true;
         }
 
         public Report Report(DateTime time)
@@ -114,7 +152,7 @@ namespace AWS.Core
         {
             // Add the new samples from the past minute to the 10-minute storage
             foreach (KeyValuePair<DateTime, int> kvp in sampleStore.InactiveSampleStore.WindSpeed)
-                windSpeed10Min.Add(kvp.Key, kvp.Value * Inspeed8PulseAnemometer.WindSpeedPerHzMph);
+                windSpeed10Min.Add(kvp.Key, kvp.Value * Inspeed8PulseAnemometer.WindSpeedMphPerHz);
 
             foreach (KeyValuePair<DateTime, int> kvp in sampleStore.InactiveSampleStore.WindDirection)
                 windDirection10Min.Add(kvp.Key, kvp.Value);

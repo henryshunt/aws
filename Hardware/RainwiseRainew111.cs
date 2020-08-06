@@ -4,7 +4,7 @@ namespace AWS.Hardware
 {
     internal class RainwiseRainew111
     {
-        public static double RainfallPerCountMM = 0.254;
+        public static double RainfallMMPerCount = 0.254;
 
         public bool IsPaused = true;
         private int counter = 0;

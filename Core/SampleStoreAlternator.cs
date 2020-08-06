@@ -6,7 +6,7 @@
         {
             get
             {
-                if (sampleStoreInUse == SampleStoreOption.Bucket1)
+                if (sampleStoreInUse == 1)
                     return sampleStore1;
                 else return sampleStore2;
             }
@@ -16,24 +16,22 @@
         {
             get
             {
-                if (sampleStoreInUse == SampleStoreOption.Bucket1)
+                if (sampleStoreInUse == 1)
                     return sampleStore2;
                 else return sampleStore1;
             }
         }
 
-        private SampleStoreOption sampleStoreInUse = SampleStoreOption.Bucket1;
+        private int sampleStoreInUse = 1;
 
         private readonly SampleStore sampleStore1 = new SampleStore();
         private readonly SampleStore sampleStore2 = new SampleStore();
 
         public void SwapSampleStore()
         {
-            if (sampleStoreInUse == SampleStoreOption.Bucket1)
-                sampleStoreInUse = SampleStoreOption.Bucket2;
-            else sampleStoreInUse = SampleStoreOption.Bucket1;
+            if (sampleStoreInUse == 1)
+                sampleStoreInUse = 2;
+            else sampleStoreInUse = 1;
         }
-
-        public enum SampleStoreOption { Bucket1, Bucket2 }
     }
 }

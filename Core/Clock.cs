@@ -11,6 +11,7 @@ namespace AWS.Core
         private Ds3231 rtc;
 
         public DateTime DateTime { get => rtc.DateTime; }
+        public bool IsClockDateTimeValid { get => rtc.ReadDateTimeValidity(); }
 
         public event EventHandler<ClockTickedEventArgs> Ticked;
 

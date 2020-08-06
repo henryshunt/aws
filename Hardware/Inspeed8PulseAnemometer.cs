@@ -2,6 +2,6 @@
 {
     internal class Inspeed8PulseAnemometer
     {
-        public static double WindSpeedPerHzMph = 0.31;
+        public static double WindSpeedMphPerHz = 0.31;
     }
 }

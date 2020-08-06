@@ -1,165 +1,167 @@
 ﻿using AWS.Routines;
+using NLog;
 using System;
 using System.Device.Gpio;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using static AWS.Routines.Helpers;
 
 namespace AWS.Core
 {
     internal class Coordinator
     {
-        private Configuration configuration;
+        private static readonly Logger eventLogger = LogManager.GetCurrentClassLogger();
+
+        private Configuration config;
         private Clock clock;
         private Sampler sampler;
 
-        private DateTime startupTime;
         private GpioController gpio;
-        private bool startedSampling = false;
+        private DateTime startupTime;
+        private bool isSampling = false;
 
 
         public void Startup()
         {
-            LogEvent("Startup", "Began startup procedure");
+            eventLogger.Info("Began AWS startup procedure");
 
             // Load configuration
             try
             {
-                configuration = Configuration.Load(CONFIG_FILE);
-
-                if (!Configuration.Validate(configuration))
-                {
-                    LogEvent("Startup", "Error while validating configuration file");
-                    return;
-                }
-                else LogEvent("Startup", "Loaded configuration file");
+                config = Configuration.Load(Helpers.CONFIG_FILE);
+                eventLogger.Info("Loaded configuration file");
             }
             catch (Exception ex)
             {
-                LogEvent("Startup", "Error while loading configuration file", ex);
+                eventLogger.Error(ex, "Error while loading configuration file");
                 return;
             }
 
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-
             gpio = new GpioController(PinNumberingScheme.Logical);
-            gpio.OpenPin(configuration.DataLedPin, PinMode.Output);
-            gpio.OpenPin(configuration.ErrorLedPin, PinMode.Output);
-            gpio.OpenPin(configuration.PowerLedPin, PinMode.Output);
+            gpio.OpenPin(config.DataLedPin, PinMode.Output);
+            gpio.OpenPin(config.ErrorLedPin, PinMode.Output);
+            gpio.Write(config.ErrorLedPin, PinValue.Low);
 
             // Initialise clock
             try
             {
-                clock = new Clock(configuration.ClockTickPin);
+                clock = new Clock(config.ClockTickPin);
                 clock.Ticked += Clock_Ticked;
 
-                LogEvent(clock.DateTime, "Startup", "Initialised clock");
+                //if (!clock.IsClockDateTimeValid)
+                //{
+                //    eventLogger.Error("Scheduling clock time is invalid");
+                //    gpio.Write(config.ErrorLedPin, PinValue.High);
+                //    return;
+                //}
+
+                startupTime = clock.DateTime;
+
+                eventLogger.Info("Initialised scheduling clock");
+                eventLogger.Info("Time is {0}", startupTime.ToString("dd/MM/yyyy HH:mm:ss"));
             }
-            catch
+            catch (Exception ex)
             {
-                LogEvent("Startup", "Error while initialising clock");
-                gpio.Write(configuration.ErrorLedPin, PinValue.High);
+                eventLogger.Error(ex, "Error while initialising scheduling clock");
+                gpio.Write(config.ErrorLedPin, PinValue.High);
                 return;
             }
 
-            startupTime = clock.DateTime;
-
-            // Data directory
-            try { Directory.CreateDirectory(DATA_DIRECTORY); }
-            catch
+            // Create data directory
+            try
             {
-                LogEvent(clock.DateTime, "Startup", "Error while creating data directory");
-                gpio.Write(configuration.ErrorLedPin, PinValue.High);
+                if (!Directory.Exists(Helpers.DATA_DIRECTORY))
+                {
+                    Directory.CreateDirectory(Helpers.DATA_DIRECTORY);
+                    eventLogger.Info("Created data directory");
+                }
+            }
+            catch (Exception ex)
+            {
+                eventLogger.Error(ex, "Error while creating data directory");
+                gpio.Write(config.ErrorLedPin, PinValue.High);
                 return;
             }
 
-            // Data database
+            // Create data database
             try
             {
                 if (!Database.Exists(Database.DatabaseFile.Data))
                 {
                     Database.Create(Database.DatabaseFile.Data);
-                    LogEvent(clock.DateTime, "Startup", "Created data database");
+                    eventLogger.Info("Created data database");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                LogEvent(clock.DateTime, "Startup", "Error while creating data database");
-                gpio.Write(configuration.ErrorLedPin, PinValue.High);
+                eventLogger.Error(ex, "Error while creating data database");
+                gpio.Write(config.ErrorLedPin, PinValue.High);
                 return;
             }
 
-            // Transmit database
+            // Create transmit database
             try
             {
-                if (configuration.Transmitter.TransmitReports &&
-                    !Database.Exists(Database.DatabaseFile.Transmit))
+                if (config.Transmitter.TransmitReports && !Database.Exists(Database.DatabaseFile.Transmit))
                 {
                     Database.Create(Database.DatabaseFile.Transmit);
-                    LogEvent(clock.DateTime, "Startup", "Created transmit database");
+                    eventLogger.Info("Created transmit database");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                LogEvent(clock.DateTime, "Startup", "Error while creating transmit database");
-                gpio.Write(configuration.ErrorLedPin, PinValue.High);
+                eventLogger.Error(ex, "Error while creating transmit database");
+                gpio.Write(config.ErrorLedPin, PinValue.High);
                 return;
             }
 
             // Initialise sensors
-            //try
-            //{
-            sampler = new Sampler(configuration);
-            sampler.Initialise();
-            //}
-            //catch (Exception ex)
-            //{
-            //    LogEvent(clock.DateTime, "Startup", "Error", ex);
-            //    return;
-            //}
+            sampler = new Sampler(config);
 
-            gpio.Write(configuration.DataLedPin, PinValue.High);
-            gpio.Write(configuration.ErrorLedPin, PinValue.High);
-            gpio.Write(configuration.PowerLedPin, PinValue.High);
-            Thread.Sleep(2500);
-            gpio.Write(configuration.DataLedPin, PinValue.Low);
-            gpio.Write(configuration.ErrorLedPin, PinValue.Low);
-            gpio.Write(configuration.PowerLedPin, PinValue.Low);
+            if (!sampler.Initialise())
+            {
+                gpio.Write(config.ErrorLedPin, PinValue.High);
+                return;
+            }
+
+
+            for (int i = 0; i < 8; i++)
+            {
+                gpio.Write(config.DataLedPin, PinValue.High);
+                Thread.Sleep(200);
+                gpio.Write(config.DataLedPin, PinValue.Low);
+                Thread.Sleep(200);
+            }
 
             clock.Start();
-            LogEvent(clock.DateTime, "Startup", "Started scheduling clock");
+            eventLogger.Info("Started scheduling clock");
 
             Console.ReadKey();
         }
 
-        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-        {
-            LogEvent(clock.DateTime, "Global", "Unhandled exception");
-        }
-
         private void Clock_Ticked(object sender, ClockTickedEventArgs e)
         {
-            // Start sampling at the start of the next minute
-            if (!startedSampling)
+            if (!isSampling)
             {
-                if (e.Time.Second == 0)
+                if (e.DateTime.Second == 0)
                 {
-                    startedSampling = true;
-                    sampler.Start(e.Time);
+                    sampler.Start(e.DateTime);
+
+                    isSampling = true;
+                    eventLogger.Info("Started sampling");
                 }
 
                 return;
             }
 
-            sampler.Sample(e.Time);
+            if (!sampler.Sample(e.DateTime))
+                gpio.Write(config.ErrorLedPin, PinValue.High);
 
-            // Run at the start of all minutes except the first
-            if (e.Time.Second == 0)
+            if (e.DateTime.Second == 0)
             {
                 new Thread(() =>
                 {
-                    LogReport(e.Time);
+                    LogReport(e.DateTime);
                     // Transmitter.Transmit();
                 }).Start();
             }
@@ -170,7 +172,7 @@ namespace AWS.Core
             Stopwatch ledStopwatch = new Stopwatch();
             ledStopwatch.Start();
 
-            gpio.Write(configuration.DataLedPin, PinValue.High);
+            gpio.Write(config.DataLedPin, PinValue.High);
 
             Report report = sampler.Report(time);
             Database.WriteReport(report);
@@ -180,7 +182,7 @@ namespace AWS.Core
             if (ledStopwatch.ElapsedMilliseconds < 1500)
                 Thread.Sleep(1500 - (int)ledStopwatch.ElapsedMilliseconds);
 
-            gpio.Write(configuration.DataLedPin, PinValue.Low);
+            gpio.Write(config.DataLedPin, PinValue.Low);
         }
     }
 }

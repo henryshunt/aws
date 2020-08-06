@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.IO;
 
 namespace AWS.Core
@@ -18,12 +19,6 @@ namespace AWS.Core
 
             return config;
         }
-
-        public static bool Validate(Configuration configuration)
-        {
-            return true;
-        }
-
 
         [JsonProperty("dataLEDPin")]
         public int DataLedPin { get; set; }
