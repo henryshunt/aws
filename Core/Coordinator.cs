@@ -45,15 +45,15 @@ namespace AWS.Core
             // Initialise clock
             try
             {
-                clock = new Clock(config.ClockTickPin);
+                clock = new Clock(config.ClockTickPin, gpio);
                 clock.Ticked += Clock_Ticked;
 
-                //if (!clock.IsClockDateTimeValid)
-                //{
-                //    eventLogger.Error("Scheduling clock time is invalid");
-                //    gpio.Write(config.ErrorLedPin, PinValue.High);
-                //    return;
-                //}
+                if (!clock.IsClockDateTimeValid)
+                {
+                    eventLogger.Error("Scheduling clock time is invalid");
+                    gpio.Write(config.ErrorLedPin, PinValue.High);
+                    return;
+                }
 
                 startupTime = clock.DateTime;
 
@@ -116,7 +116,7 @@ namespace AWS.Core
             }
 
             // Initialise sensors
-            sampler = new Sampler(config);
+            sampler = new Sampler(config, gpio);
 
             if (!sampler.Initialise())
             {

@@ -3,6 +3,7 @@ using AWS.Routines;
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.Device.Gpio;
 using System.Linq;
 
 namespace AWS.Core
@@ -12,6 +13,8 @@ namespace AWS.Core
         private static readonly Logger eventLogger = LogManager.GetCurrentClassLogger();
 
         private Configuration config;
+        private GpioController gpio;
+
         private DateTime startTime;
 
         private SampleStoreAlternator sampleStore = new SampleStoreAlternator();
@@ -22,9 +25,10 @@ namespace AWS.Core
         private BME680 bme680 = new BME680();
         private RainwiseRainew111 rainGauge = new RainwiseRainew111();
 
-        public Sampler(Configuration config)
+        public Sampler(Configuration config, GpioController gpio)
         {
             this.config = config;
+            this.gpio = gpio;
         }
 
 
