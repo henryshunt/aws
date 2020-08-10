@@ -28,11 +28,13 @@ namespace AWS.Core
 
         public void Start()
         {
-            rtc.SetAlarm1(new Ds3231Alarm1(0, 0, 0, 0, Ds3231Alarm1MatchMode.OncePerSecond));
-            rtc.SetEnabledAlarm(Ds3231Alarm.Alarm1);
-
             gpio.OpenPin(tickInterruptPin);
             gpio.SetPinMode(tickInterruptPin, PinMode.Input);
+
+            rtc.EnabledAlarm = Ds3231Alarm.Alarm1;
+            rtc.SetAlarm1(new Ds3231Alarm1(0, 0, 0, 0, Ds3231Alarm1MatchMode.OncePerSecond));
+            rtc.ResetAlarmTriggeredStates();
+
             gpio.RegisterCallbackForPinValueChangedEvent(tickInterruptPin, PinEventTypes.Falling, OnAlarmTriggered);
         }
 

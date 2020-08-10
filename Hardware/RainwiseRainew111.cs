@@ -1,34 +1,46 @@
-﻿using System.Device.Gpio;
+﻿using System;
+using System.Device.Gpio;
 
 namespace AWS.Hardware
 {
     internal class RainwiseRainew111
     {
-        public static double RainfallMMPerCount = 0.254;
+        private GpioController gpio;
+        private int pin;
 
-        public bool IsPaused = true;
+        private bool isStarted = false;
         private int counter = 0;
 
-        public void Initialise(int pinNumber)
+        public void Initialise(GpioController gpio, int pin)
         {
-            GpioController gpio = new GpioController(PinNumberingScheme.Logical);
-            gpio.OpenPin(pinNumber, PinMode.InputPullUp);
-            gpio.RegisterCallbackForPinValueChangedEvent(pinNumber, PinEventTypes.Falling, OnInterrupt);
+            this.gpio = gpio;
+            this.pin = pin;
+
+            gpio.OpenPin(pin, PinMode.InputPullUp);
         }
 
-        public int Sample()
+        public void Start()
         {
+            if (!isStarted)
+            {
+                gpio.RegisterCallbackForPinValueChangedEvent(pin, PinEventTypes.Falling, OnBucketTip);
+                isStarted = true;
+            }
+        }
+
+        public double Sample()
+        {
+            if (!isStarted)
+                return 0;
+
             int counter = this.counter;
             this.counter = 0;
-            
-            return counter;
+
+            return counter * 0.254;
         }
 
-        private void OnInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
+        private void OnBucketTip(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
-            if (IsPaused)
-                return;
-
             counter++;
         }
     }

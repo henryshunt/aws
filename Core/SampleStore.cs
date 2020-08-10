@@ -10,6 +10,7 @@ namespace AWS.Core
         public List<KeyValuePair<DateTime, int>> WindSpeed;
         public List<KeyValuePair<DateTime, int>> WindDirection;
         public List<double> StationPressure;
+        public List<double> Rainfall;
 
         public SampleStore()
         {
@@ -23,6 +24,7 @@ namespace AWS.Core
             WindSpeed = new List<KeyValuePair<DateTime, int>>();
             WindDirection = new List<KeyValuePair<DateTime, int>>();
             StationPressure = new List<double>();
+            Rainfall = new List<double>();
         }
     }
 }

@@ -82,7 +82,7 @@ namespace AWS.Core
             {
                 try
                 {
-                    rainGauge.Initialise((int)config.Sensors.Rainfall.Pin);
+                    rainGauge.Initialise(gpio, (int)config.Sensors.Rainfall.Pin);
                 }
                 catch (Exception ex)
                 {
@@ -102,7 +102,7 @@ namespace AWS.Core
                 satellite1.Start();
 
             if (config.Sensors.Rainfall.Enabled)
-                rainGauge.IsPaused = false;
+                rainGauge.Start();
         }
 
         public bool Sample(DateTime time)
@@ -127,6 +127,9 @@ namespace AWS.Core
             sampleStore.ActiveSampleStore.RelativeHumidity.Add(bme680Sample.Item2);
             sampleStore.ActiveSampleStore.StationPressure.Add(bme680Sample.Item3);
 
+            if (config.Sensors.Rainfall.Enabled)
+                sampleStore.ActiveSampleStore.Rainfall.Add(rainGauge.Sample());
+
             return true;
         }
 
@@ -144,9 +147,12 @@ namespace AWS.Core
             report.WindDirection = windCalculations.Item2;
             report.WindGustSpeed = windCalculations.Item3;
 
-            Console.WriteLine(string.Format("T: {0:0.00}, H: {1:0.00}, P: {2:0.00}, WS: {3:0.00}, WD: {4} WG: {5:0.00}",
+            report.Rainfall = sampleStore.InactiveSampleStore.Rainfall.Sum();
+
+            Console.WriteLine(string.Format(
+                "T:{0:0.00}, H:{1:0.00}, P:{2:0.00}, WS:{3:0.00}, WD:{4}, WG:{5:0.00}, R:{6:0.000}",
                 report.AirTemperature, report.RelativeHumidity, report.StationPressure, report.WindSpeed,
-                report.WindDirection, report.WindGustSpeed));
+                report.WindDirection, report.WindGustSpeed, report.Rainfall));
 
             sampleStore.InactiveSampleStore.Clear();
             return report;
