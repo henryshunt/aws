@@ -20,6 +20,8 @@ namespace AWS.Core
             return config;
         }
 
+
+
         [JsonProperty("dataLEDPin")]
         public int DataLedPin { get; set; }
         [JsonProperty("errorLEDPin")]
@@ -32,18 +34,18 @@ namespace AWS.Core
 
 
         [JsonProperty("logger")]
-        public LoggerJson Logger { get; set; }
+        public ConfigLogger Logger { get; set; }
 
-        internal class LoggerJson
+        internal class ConfigLogger
         {
 
         }
 
 
         [JsonProperty("transmitter")]
-        public TransmitterJson Transmitter { get; set; }
+        public ConfigTransmitter Transmitter { get; set; }
 
-        internal class TransmitterJson
+        internal class ConfigTransmitter
         {
             [JsonProperty("transmitReports")]
             public bool TransmitReports { get; set; }
@@ -51,58 +53,130 @@ namespace AWS.Core
 
 
         [JsonProperty("sensors")]
-        public SensorsJson Sensors { get; set; }
+        public ConfigSensors Sensors { get; set; }
 
-        public class SensorsJson
+        public class ConfigSensors
         {
             [JsonProperty("airTemperature")]
-            public AirTemperatureJson AirTemperature { get; set; }
+            public ConfigAirTemperature AirTemperature { get; set; }
+
+            [JsonProperty("relativeHumidity")]
+            public ConfigRelativeHumidity RelativeHumidity { get; set; }
 
             [JsonProperty("satellite1")]
-            public Satellite1Json Satellite1 { get; set; }
+            public ConfigSatellite1 Satellite1 { get; set; }
 
-            public class Satellite1Json
+            public class ConfigSatellite1
             {
                 [JsonIgnore]
                 public bool Enabled { get; set; }
 
                 [JsonProperty("windSpeed")]
-                public WindSpeedJson WindSpeed { get; set; }
+                public ConfigWindSpeed WindSpeed { get; set; }
 
                 [JsonProperty("windDirection")]
-                public WindDirectionJson WindDirection { get; set; }
+                public ConfigWindDirection WindDirection { get; set; }
             }
 
             [JsonProperty("rainfall")]
-            public RainfallJson Rainfall { get; set; }
+            public ConfigRainfall Rainfall { get; set; }
+
+            [JsonProperty("barometricPressure")]
+            public ConfigBarometricPressure BarometricPressure { get; set; }
+
+            [JsonProperty("sunshineDuration")]
+            public ConfigSunshineDuration SunshineDuration { get; set; }
+
+            [JsonProperty("soilTemperature10")]
+            public ConfigSoilTemperature10 SoilTemperature10 { get; set; }
+
+            [JsonProperty("soilTemperature30")]
+            public ConfigSoilTemperature30 SoilTemperature30 { get; set; }
+
+            [JsonProperty("soilTemperature100")]
+            public ConfigSoilTemperature100 SoilTemperature100 { get; set; }
 
 
-            internal class AirTemperatureJson
+            internal class ConfigAirTemperature
             {
                 [JsonProperty("enabled")]
                 public bool Enabled { get; set; }
-            }
 
-            internal class WindSpeedJson
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
                 [JsonProperty("pin")]
                 public int? Pin { get; set; }
             }
 
-            internal class WindDirectionJson
+            internal class ConfigRelativeHumidity
             {
                 [JsonProperty("enabled")]
                 public bool Enabled { get; set; }
+            }
+
+            internal class ConfigWindSpeed
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+
                 [JsonProperty("pin")]
                 public int? Pin { get; set; }
             }
 
-            internal class RainfallJson
+            internal class ConfigWindDirection
             {
                 [JsonProperty("enabled")]
                 public bool Enabled { get; set; }
+
+                [JsonProperty("pin")]
+                public int? Pin { get; set; }
+            }
+
+            internal class ConfigRainfall
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+
+                [JsonProperty("pin")]
+                public int? Pin { get; set; }
+            }
+
+            internal class ConfigBarometricPressure
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+            }
+
+            internal class ConfigSunshineDuration
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+
+                [JsonProperty("pin")]
+                public int? Pin { get; set; }
+            }
+
+            internal class ConfigSoilTemperature10
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+
+                [JsonProperty("pin")]
+                public int? Pin { get; set; }
+            }
+
+            internal class ConfigSoilTemperature30
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+
+                [JsonProperty("pin")]
+                public int? Pin { get; set; }
+            }
+
+            internal class ConfigSoilTemperature100
+            {
+                [JsonProperty("enabled")]
+                public bool Enabled { get; set; }
+
                 [JsonProperty("pin")]
                 public int? Pin { get; set; }
             }

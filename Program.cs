@@ -2,16 +2,24 @@
 using NLog;
 using NLog.Layouts;
 using NLog.Targets;
+using System;
 
 namespace AWS
 {
     internal class Program
     {
+        private static readonly Logger eventLogger = LogManager.GetCurrentClassLogger();
+
         static void Main(string[] args)
         {
             ConfigureLogging();
 
             new Core.Coordinator().Startup();
+
+            // Log any (unexpected) uncaught exceptions in the program
+            AppDomain.CurrentDomain.FirstChanceException +=
+                (sender, e) => eventLogger.Error(e.Exception, "Uncaught exception");
+
         }
 
         private static void ConfigureLogging()

@@ -118,7 +118,7 @@ namespace AWS.Core
             // Initialise sensors
             sampler = new Sampler(config, gpio);
 
-            if (!sampler.Initialise())
+            if (!sampler.Connect())
             {
                 gpio.Write(config.ErrorLedPin, PinValue.High);
                 return;
@@ -143,9 +143,9 @@ namespace AWS.Core
         {
             if (!isSampling)
             {
-                if (e.DateTime.Second == 0)
+                if (e.Time.Second == 0)
                 {
-                    sampler.Start(e.DateTime);
+                    sampler.Start(e.Time);
 
                     isSampling = true;
                     eventLogger.Info("Started sampling");
@@ -154,14 +154,14 @@ namespace AWS.Core
                 return;
             }
 
-            if (!sampler.Sample(e.DateTime))
+            if (!sampler.Sample(e.Time))
                 gpio.Write(config.ErrorLedPin, PinValue.High);
 
-            if (e.DateTime.Second == 0)
+            if (e.Time.Second == 0)
             {
                 new Thread(() =>
                 {
-                    LogReport(e.DateTime);
+                    LogReport(e.Time);
                     // Transmitter.Transmit();
                 }).Start();
             }

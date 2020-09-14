@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Device.Gpio;
 using System.Linq;
+using System.Numerics;
 
 namespace AWS.Core
 {
@@ -15,11 +16,13 @@ namespace AWS.Core
         private Configuration config;
         private GpioController gpio;
 
+        private bool hasConnected = false;
+        private bool hasStarted = false;
         private DateTime startTime;
 
-        private SampleStoreAlternator sampleStore = new SampleStoreAlternator();
-        private Dictionary<DateTime, double> windSpeed10Min = new Dictionary<DateTime, double>();
-        private Dictionary<DateTime, int> windDirection10Min = new Dictionary<DateTime, int>();
+        private readonly SampleStoreAlternator sampleStore = new SampleStoreAlternator();
+        private readonly List<KeyValuePair<DateTime, double>> windSpeed10MinStore = new List<KeyValuePair<DateTime, double>>();
+        private readonly List<KeyValuePair<DateTime, int>> windDirection10MinStore = new List<KeyValuePair<DateTime, int>>();
 
         private Satellite satellite1 = new Satellite();
         private BME680 bme680 = new BME680();
@@ -32,9 +35,14 @@ namespace AWS.Core
         }
 
 
-        public bool Initialise()
+        /// <summary>
+        /// Configures and opens a connection to the sensors marked as enabled in the configuration.
+        /// </summary>
+        /// <returns>An indication of success or failure.</returns>
+        public bool Connect()
         {
-            if (config.Sensors.AirTemperature.Enabled)
+            if (config.Sensors.AirTemperature.Enabled || config.Sensors.RelativeHumidity.Enabled ||
+                config.Sensors.BarometricPressure.Enabled)
             {
                 try
                 {
@@ -91,11 +99,20 @@ namespace AWS.Core
                 }
             }
 
+            hasConnected = true;
             return true;
         }
 
-        public void Start(DateTime time)
+        /// <summary>
+        /// Some sensors (such as those which work by counting events) require being explicitly
+        /// started. This method starts those sensors.
+        /// </summary>
+        /// <param name="time">Time that the sensors were started.</param>
+        public bool Start(DateTime time)
         {
+            if (!hasConnected)
+                throw new WorkflowOrderException("You must call Connect() first.");
+
             startTime = time;
 
             if (config.Sensors.Satellite1.Enabled)
@@ -103,10 +120,24 @@ namespace AWS.Core
 
             if (config.Sensors.Rainfall.Enabled)
                 rainGauge.Start();
+
+            hasStarted = true;
+            return true;
         }
 
+        /// <summary>
+        /// Samples the sensors marked as enabled in the configuration and stores the values internally.
+        /// </summary>
+        /// <param name="time">Time of the sample.</param>
+        /// <returns>An indication of success or failure.</returns>
         public bool Sample(DateTime time)
         {
+            if (!hasConnected)
+                throw new WorkflowOrderException("You must call Connect() first.");
+            else if (!hasStarted)
+                throw new WorkflowOrderException("You must call Start() first.");
+
+            // Sample the satellite first since it resets the wind speed counter
             if (config.Sensors.Satellite1.Enabled && satellite1.Sample())
             {
                 if (satellite1.LatestSample.WindSpeed != null)
@@ -125,7 +156,7 @@ namespace AWS.Core
             Tuple<double, double, double> bme680Sample = bme680.Sample();
             sampleStore.ActiveSampleStore.AirTemperature.Add(bme680Sample.Item1);
             sampleStore.ActiveSampleStore.RelativeHumidity.Add(bme680Sample.Item2);
-            sampleStore.ActiveSampleStore.StationPressure.Add(bme680Sample.Item3);
+            sampleStore.ActiveSampleStore.BarometricPressure.Add(bme680Sample.Item3);
 
             if (config.Sensors.Rainfall.Enabled)
                 sampleStore.ActiveSampleStore.Rainfall.Add(rainGauge.Sample());
@@ -133,82 +164,121 @@ namespace AWS.Core
             return true;
         }
 
+        /// <summary>
+        /// Produces a report from the samples stored since the last time this method was called.
+        /// </summary>
+        /// <param name="time">Time of the report.</param>
+        /// <returns>The produced report.</returns>
         public Report Report(DateTime time)
         {
             sampleStore.SwapSampleStore();
-
             Report report = new Report(time);
-            report.AirTemperature = sampleStore.InactiveSampleStore.AirTemperature.Average();
-            report.RelativeHumidity = sampleStore.InactiveSampleStore.RelativeHumidity.Average();
-            report.StationPressure = sampleStore.InactiveSampleStore.StationPressure.Average();
 
-            Tuple<double, double, double> windCalculations = ProcessWindData(time);
-            report.WindSpeed = windCalculations.Item1;
-            report.WindDirection = windCalculations.Item2;
-            report.WindGustSpeed = windCalculations.Item3;
+            if (sampleStore.InactiveSampleStore.AirTemperature.Count > 0)
+                report.AirTemperature = sampleStore.InactiveSampleStore.AirTemperature.Average();
 
-            report.Rainfall = sampleStore.InactiveSampleStore.Rainfall.Sum();
+            if (sampleStore.InactiveSampleStore.RelativeHumidity.Count > 0)
+                report.RelativeHumidity = sampleStore.InactiveSampleStore.RelativeHumidity.Average();
 
-            Console.WriteLine(string.Format(
-                "T:{0:0.00}, H:{1:0.00}, P:{2:0.00}, WS:{3:0.00}, WD:{4}, WG:{5:0.00}, R:{6:0.000}",
-                report.AirTemperature, report.RelativeHumidity, report.StationPressure, report.WindSpeed,
-                report.WindDirection, report.WindGustSpeed, report.Rainfall));
+            Update10MinuteWindStore(time);
+            Tuple<double, double, double> windValues = CalculateWindValues(time);
+
+            report.WindSpeed = windValues.Item1;
+            report.WindDirection = windValues.Item2;
+            report.WindGust = windValues.Item3;
+
+            if (config.Sensors.Rainfall.Enabled)
+            {
+                if (sampleStore.InactiveSampleStore.Rainfall.Count > 0)
+                    report.Rainfall = sampleStore.InactiveSampleStore.Rainfall.Sum();
+                else report.Rainfall = 0;
+            }
+
+            if (sampleStore.InactiveSampleStore.BarometricPressure.Count > 0)
+                report.BarometricPressure = sampleStore.InactiveSampleStore.BarometricPressure.Average();
+
+            if (config.Sensors.SunshineDuration.Enabled)
+            {
+                if (sampleStore.InactiveSampleStore.SunshineDuration.Count > 0)
+                    report.SunshineDuration = sampleStore.InactiveSampleStore.SunshineDuration.Sum();
+                else report.SunshineDuration = 0;
+            }
+
+            if (sampleStore.InactiveSampleStore.SoilTemperature10.Count > 0)
+                report.SoilTemperature10 = sampleStore.InactiveSampleStore.SoilTemperature10.Average();
+
+            if (sampleStore.InactiveSampleStore.SoilTemperature30.Count > 0)
+                report.SoilTemperature30 = sampleStore.InactiveSampleStore.SoilTemperature30.Average();
+
+            if (sampleStore.InactiveSampleStore.SoilTemperature100.Count > 0)
+                report.SoilTemperature100 = sampleStore.InactiveSampleStore.SoilTemperature100.Average();
+
+            Console.WriteLine(report.ToString());
 
             sampleStore.InactiveSampleStore.Clear();
             return report;
         }
 
-        private Tuple<double, double, double> ProcessWindData(DateTime time)
+        /// <summary>
+        /// Copies wind speed and direction samples from the inactive sample store to the ten-minute
+        /// wind store and removes samples older than ten minutes from the ten-minute wind store.
+        /// </summary>
+        /// <param name="tenMinuteEnd">The end of the ten-minute period.</param>
+        private void Update10MinuteWindStore(DateTime tenMinuteEnd)
         {
-            // Add the new samples from the past minute to the 10-minute storage
-            foreach (KeyValuePair<DateTime, int> kvp in sampleStore.InactiveSampleStore.WindSpeed)
-                windSpeed10Min.Add(kvp.Key, kvp.Value * Inspeed8PulseAnemometer.WindSpeedMphPerHz);
+            foreach (KeyValuePair<DateTime, int> sample in sampleStore.InactiveSampleStore.WindSpeed)
+            {
+                windSpeed10MinStore.Add(new KeyValuePair<DateTime, double>(
+                    sample.Key, sample.Value * Inspeed8PulseAnemometer.WindSpeedMphPerHz));
+            }
 
-            foreach (KeyValuePair<DateTime, int> kvp in sampleStore.InactiveSampleStore.WindDirection)
-                windDirection10Min.Add(kvp.Key, kvp.Value);
+            windDirection10MinStore.AddRange(sampleStore.InactiveSampleStore.WindDirection);
 
+            // 599 is 10 minutes minus 1 second
+            windSpeed10MinStore.RemoveAll(sample => sample.Key < tenMinuteEnd - TimeSpan.FromSeconds(599));
+            windDirection10MinStore.RemoveAll(sample => sample.Key < tenMinuteEnd - TimeSpan.FromSeconds(599));
+        }
 
-            // Remove samples older than 10 minutes from the 10-minute storage
-            List<KeyValuePair<DateTime, double>> toRemove =
-                windSpeed10Min.Where(kvp => kvp.Key < time - TimeSpan.FromMinutes(10)).ToList();
-
-            foreach (var i in toRemove)
-                windSpeed10Min.Remove(i.Key);
-
-            List<KeyValuePair<DateTime, int>> toRemove2 =
-                windDirection10Min.Where(kvp => kvp.Key < time - TimeSpan.FromMinutes(10)).ToList();
-
-            foreach (var i in toRemove)
-                windDirection10Min.Remove(i.Key);
-
-            DateTime tenago = time - TimeSpan.FromMinutes(10);
-            time = time - TimeSpan.FromMinutes(10);
-
-            // Calculate wind gust
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tenMinuteEnd">The end of the ten-minute period.</param>
+        /// <returns>A tuple containing wind speed, direction and gust.</returns>
+        private Tuple<double, double, double> CalculateWindValues(DateTime tenMinuteEnd)
+        {
             double windGust = 0;
 
-            for (int i = 0; i < 598; i++)
+            for (DateTime i = tenMinuteEnd - TimeSpan.FromSeconds(599);
+                i <= tenMinuteEnd - TimeSpan.FromSeconds(2); i += TimeSpan.FromSeconds(1))
             {
-                try
-                {
-                    var t = windSpeed10Min.Where(x =>
-                        x.Key > time + TimeSpan.FromSeconds(i) && x.Key <= time + TimeSpan.FromSeconds(i + 3));
+                //try
+                //{
+                //    var t = windSpeed10MinStore.Where(x =>
+                //        x.Key > tenMinuteEnd + TimeSpan.FromSeconds(i) && x.Key <= tenMinuteEnd + TimeSpan.FromSeconds(i + 3));
 
-                    double gust = t.Average(x => x.Value);
+                //    double gust = t.Average(x => x.Value);
 
-                    if (gust > windGust)
-                        windGust = gust;
+                //    if (gust > windGust)
+                //        windGust = gust;
 
-                    //Console.WriteLine("sample start {0} gust {1}", time + TimeSpan.FromSeconds(i), gust);
-                }
-                catch { }
+                Console.WriteLine("sample start {0} to {1}", i, i + TimeSpan.FromSeconds(3));
+                //}
+                //catch { }
             }
 
             // Create list of vectors
+            //List<Tuple<int, double>> vectors = new List<Tuple<int, double>>();
 
+            //for (DateTime i = tenMinuteEnd - TimeSpan.FromSeconds(599); i <= tenMinuteEnd; i += TimeSpan.FromSeconds(1))
+            //{
+            //    if (windSpeed10MinStore.Any(sample => sample.Key == i) &&
+            //        windDirection10MinStore.Any(sample => sample.Key == i))
+            //    {
+            //        vectors.Add(new Tuple<int, double>());
+            //    }
+            //}
 
-
-            double windSpeed = windSpeed10Min.Average(x => x.Value);
+            double windSpeed = windSpeed10MinStore.Average(x => x.Value);
             double windDirection = 0;
 
             return new Tuple<double, double, double>(windSpeed, windDirection, windGust);

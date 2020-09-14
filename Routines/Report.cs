@@ -13,11 +13,11 @@ namespace AWS.Routines
         public double? DewPoint { get; set; } = null;
         public double? WindSpeed { get; set; } = null;
         public double? WindDirection { get; set; } = null;
-        public double? WindGustSpeed { get; set; } = null;
-        public double? WindGustDirection { get; set; } = null;
+        public double? WindGust { get; set; } = null;
         public double? Rainfall { get; set; } = null;
-        public double? StationPressure { get; set; } = null;
-        public double? MSLPressure { get; set; } = null;
+        public double? BarometricPressure { get; set; } = null;
+        public double? MslPressure { get; set; } = null;
+        public int? SunshineDuration { get; set; } = null;
         public double? SoilTemperature10 { get; set; } = null;
         public double? SoilTemperature30 { get; set; } = null;
         public double? SoilTemperature100 { get; set; } = null;
@@ -25,6 +25,14 @@ namespace AWS.Routines
         public Report(DateTime time)
         {
             Time = time;
+        }
+
+        public override string ToString()
+        {
+            return string.Format(
+                "T:{0:0.00}, H:{1:0.00}, WS:{3:0.00}, WD:{4}, WG:{5:0.00}, R:{6:0.000}, P:{2:0.00}",
+                AirTemperature, RelativeHumidity, BarometricPressure, WindSpeed, WindDirection,
+                WindGust, Rainfall);
         }
     }
 }

@@ -4,11 +4,11 @@ namespace AWS.Core
 {
     internal class ClockTickedEventArgs : EventArgs
     {
-        public DateTime DateTime { get; private set; }
+        public DateTime Time { get; private set; }
 
-        public ClockTickedEventArgs(DateTime dateTime)
+        public ClockTickedEventArgs(DateTime time)
         {
-            DateTime = dateTime;
+            Time = time;
         }
     }
 }
