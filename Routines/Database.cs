@@ -51,9 +51,9 @@ namespace AWS.Routines
             {
                 connection.Open();
                 string sql = "INSERT INTO reports (time, air_temperature, relative_humidity, dew_point, wind_speed, " +
-                    "wind_direction, wind_gust_speed, wind_gust_direction, rainfall, station_pressure, msl_pressure, " +
+                    "wind_direction, wind_gust_speed, rainfall, station_pressure, msl_pressure, " +
                     "soil_temperature_10, soil_temperature_30, soil_temperature_100) VALUES (@Time, @AirTemperature, " +
-                    "@RelativeHumidity, @DewPoint, @WindSpeed, @WindDirection, @WindGustSpeed, @WindGustDirection, " +
+                    "@RelativeHumidity, @DewPoint, @WindSpeed, @WindDirection, @WindGustSpeed, " +
                     "@Rainfall, @StationPressure, @MSLPressure, @SoilTemperature10, @SoilTemperature30, " +
                     "@SoilTemperature100)";
 
@@ -83,25 +83,21 @@ namespace AWS.Routines
                     query.Parameters.AddWithValue("@WindDirection", DBNull.Value);
                 else query.Parameters.AddWithValue("@WindDirection", report.WindDirection);
 
-                if (report.WindGustSpeed == null)
+                if (report.WindGust == null)
                     query.Parameters.AddWithValue("@WindGustSpeed", DBNull.Value);
-                else query.Parameters.AddWithValue("@WindGustSpeed", report.WindGustSpeed);
-
-                if (report.WindGustDirection == null)
-                    query.Parameters.AddWithValue("@WindGustDirection", DBNull.Value);
-                else query.Parameters.AddWithValue("@WindGustDirection", report.WindGustDirection);
+                else query.Parameters.AddWithValue("@WindGustSpeed", report.WindGust);
 
                 if (report.Rainfall == null)
                     query.Parameters.AddWithValue("@Rainfall", DBNull.Value);
                 else query.Parameters.AddWithValue("@Rainfall", report.Rainfall);
 
-                if (report.StationPressure == null)
+                if (report.BarometricPressure == null)
                     query.Parameters.AddWithValue("@StationPressure", DBNull.Value);
-                else query.Parameters.AddWithValue("@StationPressure", report.StationPressure);
+                else query.Parameters.AddWithValue("@StationPressure", report.BarometricPressure);
 
-                if (report.MSLPressure == null)
+                if (report.MslPressure == null)
                     query.Parameters.AddWithValue("@MSLPressure", DBNull.Value);
-                else query.Parameters.AddWithValue("@MSLPressure", report.MSLPressure);
+                else query.Parameters.AddWithValue("@MSLPressure", report.MslPressure);
 
                 if (report.SoilTemperature10 == null)
                     query.Parameters.AddWithValue("@SoilTemperature10", DBNull.Value);

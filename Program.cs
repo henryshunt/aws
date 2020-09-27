@@ -26,7 +26,8 @@ namespace AWS
         {
             var loggingConfig = new NLog.Config.LoggingConfiguration();
 
-            string loggingLayout = "${level:uppercase=true} | ${logger} -- ${message}";
+            string loggingLayout = "${level:uppercase=true} | ${logger} -- ${message}" +
+                "${onexception:inner=${newline}${exception:format=tostring}}";
 
             FileTarget loggingFile = new FileTarget("logfile");
             loggingFile.FileName = Helpers.LOGGING_FILE;

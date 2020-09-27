@@ -41,8 +41,8 @@ namespace AWS.Core
         /// <returns>An indication of success or failure.</returns>
         public bool Connect()
         {
-            if (config.Sensors.AirTemperature.Enabled || config.Sensors.RelativeHumidity.Enabled ||
-                config.Sensors.BarometricPressure.Enabled)
+            if (config.sensors.airTemperature.enabled == true || config.sensors.relativeHumidity.enabled == true ||
+                config.sensors.barometricPressure.Enabled == true)
             {
                 try
                 {
@@ -55,20 +55,20 @@ namespace AWS.Core
                 }
             }
 
-            if (config.Sensors.Satellite1.Enabled)
+            if (config.sensors.satellite.enabled == true)
             {
                 SatelliteConfiguration satelliteConfig = new SatelliteConfiguration();
 
-                if (config.Sensors.Satellite1.WindSpeed.Enabled)
+                if (config.sensors.satellite.windSpeed.enabled == true)
                 {
                     satelliteConfig.WindSpeedEnabled = true;
-                    satelliteConfig.WindSpeedPin = (int)config.Sensors.Satellite1.WindSpeed.Pin;
+                    satelliteConfig.WindSpeedPin = (int)config.sensors.satellite.windSpeed.pin;
                 }
 
-                if (config.Sensors.Satellite1.WindDirection.Enabled)
+                if (config.sensors.satellite.windDirection.enabled == true)
                 {
                     satelliteConfig.WindDirectionEnabled = true;
-                    satelliteConfig.WindDirectionPin = (int)config.Sensors.Satellite1.WindDirection.Pin;
+                    satelliteConfig.WindDirectionPin = (int)config.sensors.satellite.windDirection.pin;
                 }
 
                 try
@@ -86,11 +86,11 @@ namespace AWS.Core
                 }
             }
 
-            if (config.Sensors.Rainfall.Enabled)
+            if (config.sensors.rainfall.enabled == true)
             {
                 try
                 {
-                    rainGauge.Initialise(gpio, (int)config.Sensors.Rainfall.Pin);
+                    rainGauge.Initialise(gpio, (int)config.sensors.rainfall.pin);
                 }
                 catch (Exception ex)
                 {
@@ -115,10 +115,10 @@ namespace AWS.Core
 
             startTime = time;
 
-            if (config.Sensors.Satellite1.Enabled)
+            if (config.sensors.satellite.enabled == true)
                 satellite1.Start();
 
-            if (config.Sensors.Rainfall.Enabled)
+            if (config.sensors.rainfall.enabled == true)
                 rainGauge.Start();
 
             hasStarted = true;
@@ -138,7 +138,7 @@ namespace AWS.Core
                 throw new WorkflowOrderException("You must call Start() first.");
 
             // Sample the satellite first since it resets the wind speed counter
-            if (config.Sensors.Satellite1.Enabled && satellite1.Sample())
+            if (config.sensors.satellite.enabled == true && satellite1.Sample())
             {
                 if (satellite1.LatestSample.WindSpeed != null)
                 {
@@ -158,7 +158,7 @@ namespace AWS.Core
             sampleStore.ActiveSampleStore.RelativeHumidity.Add(bme680Sample.Item2);
             sampleStore.ActiveSampleStore.BarometricPressure.Add(bme680Sample.Item3);
 
-            if (config.Sensors.Rainfall.Enabled)
+            if (config.sensors.rainfall.enabled == true)
                 sampleStore.ActiveSampleStore.Rainfall.Add(rainGauge.Sample());
 
             return true;
@@ -187,7 +187,7 @@ namespace AWS.Core
             report.WindDirection = windValues.Item2;
             report.WindGust = windValues.Item3;
 
-            if (config.Sensors.Rainfall.Enabled)
+            if (config.sensors.rainfall.enabled == true)
             {
                 if (sampleStore.InactiveSampleStore.Rainfall.Count > 0)
                     report.Rainfall = sampleStore.InactiveSampleStore.Rainfall.Sum();
@@ -197,7 +197,7 @@ namespace AWS.Core
             if (sampleStore.InactiveSampleStore.BarometricPressure.Count > 0)
                 report.BarometricPressure = sampleStore.InactiveSampleStore.BarometricPressure.Average();
 
-            if (config.Sensors.SunshineDuration.Enabled)
+            if (config.sensors.sunshineDuration.enabled == true)
             {
                 if (sampleStore.InactiveSampleStore.SunshineDuration.Count > 0)
                     report.SunshineDuration = sampleStore.InactiveSampleStore.SunshineDuration.Sum();
@@ -261,7 +261,7 @@ namespace AWS.Core
                 //    if (gust > windGust)
                 //        windGust = gust;
 
-                Console.WriteLine("sample start {0} to {1}", i, i + TimeSpan.FromSeconds(3));
+                //Console.WriteLine("sample start {0} to {1}", i, i + TimeSpan.FromSeconds(3));
                 //}
                 //catch { }
             }
@@ -278,7 +278,7 @@ namespace AWS.Core
             //    }
             //}
 
-            double windSpeed = windSpeed10MinStore.Average(x => x.Value);
+            double windSpeed = 0; //windSpeed10MinStore.Average(x => x.Value);
             double windDirection = 0;
 
             return new Tuple<double, double, double>(windSpeed, windDirection, windGust);

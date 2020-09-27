@@ -28,7 +28,14 @@ namespace AWS.Core
             // Load configuration
             try
             {
-                config = Configuration.Load(Helpers.CONFIG_FILE);
+                config = new Configuration(Helpers.CONFIG_FILE);
+
+                if (!config.Load())
+                {
+                    eventLogger.Error("Invalid configuration file");
+                    return;
+                }
+
                 eventLogger.Info("Loaded configuration file");
             }
             catch (Exception ex)
@@ -38,20 +45,20 @@ namespace AWS.Core
             }
 
             gpio = new GpioController(PinNumberingScheme.Logical);
-            gpio.OpenPin(config.DataLedPin, PinMode.Output);
-            gpio.OpenPin(config.ErrorLedPin, PinMode.Output);
-            gpio.Write(config.ErrorLedPin, PinValue.Low);
+            gpio.OpenPin(config.dataLedPin, PinMode.Output);
+            gpio.OpenPin(config.errorLedPin, PinMode.Output);
+            gpio.Write(config.errorLedPin, PinValue.Low);
 
             // Initialise clock
             try
             {
-                clock = new Clock(config.ClockTickPin, gpio);
+                clock = new Clock(config.clockTickPin, gpio);
                 clock.Ticked += Clock_Ticked;
 
                 if (!clock.IsClockDateTimeValid)
                 {
                     eventLogger.Error("Scheduling clock time is invalid");
-                    gpio.Write(config.ErrorLedPin, PinValue.High);
+                    gpio.Write(config.errorLedPin, PinValue.High);
                     return;
                 }
 
@@ -63,7 +70,7 @@ namespace AWS.Core
             catch (Exception ex)
             {
                 eventLogger.Error(ex, "Error while initialising scheduling clock");
-                gpio.Write(config.ErrorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
 
@@ -79,7 +86,7 @@ namespace AWS.Core
             catch (Exception ex)
             {
                 eventLogger.Error(ex, "Error while creating data directory");
-                gpio.Write(config.ErrorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
 
@@ -95,41 +102,41 @@ namespace AWS.Core
             catch (Exception ex)
             {
                 eventLogger.Error(ex, "Error while creating data database");
-                gpio.Write(config.ErrorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
 
             // Create transmit database
-            try
-            {
-                if (config.Transmitter.TransmitReports && !Database.Exists(Database.DatabaseFile.Transmit))
-                {
-                    Database.Create(Database.DatabaseFile.Transmit);
-                    eventLogger.Info("Created transmit database");
-                }
-            }
-            catch (Exception ex)
-            {
-                eventLogger.Error(ex, "Error while creating transmit database");
-                gpio.Write(config.ErrorLedPin, PinValue.High);
-                return;
-            }
+            //try
+            //{
+            //    if (config.Transmitter.TransmitReports && !Database.Exists(Database.DatabaseFile.Transmit))
+            //    {
+            //        Database.Create(Database.DatabaseFile.Transmit);
+            //        eventLogger.Info("Created transmit database");
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    eventLogger.Error(ex, "Error while creating transmit database");
+            //    gpio.Write(config.ErrorLedPin, PinValue.High);
+            //    return;
+            //}
 
             // Initialise sensors
             sampler = new Sampler(config, gpio);
 
             if (!sampler.Connect())
             {
-                gpio.Write(config.ErrorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
 
 
             for (int i = 0; i < 8; i++)
             {
-                gpio.Write(config.DataLedPin, PinValue.High);
+                gpio.Write(config.dataLedPin, PinValue.High);
                 Thread.Sleep(200);
-                gpio.Write(config.DataLedPin, PinValue.Low);
+                gpio.Write(config.dataLedPin, PinValue.Low);
                 Thread.Sleep(200);
             }
 
@@ -155,7 +162,7 @@ namespace AWS.Core
             }
 
             if (!sampler.Sample(e.Time))
-                gpio.Write(config.ErrorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
 
             if (e.Time.Second == 0)
             {
@@ -172,7 +179,7 @@ namespace AWS.Core
             Stopwatch ledStopwatch = new Stopwatch();
             ledStopwatch.Start();
 
-            gpio.Write(config.DataLedPin, PinValue.High);
+            gpio.Write(config.dataLedPin, PinValue.High);
 
             Report report = sampler.Report(time);
             Database.WriteReport(report);
@@ -182,7 +189,7 @@ namespace AWS.Core
             if (ledStopwatch.ElapsedMilliseconds < 1500)
                 Thread.Sleep(1500 - (int)ledStopwatch.ElapsedMilliseconds);
 
-            gpio.Write(config.DataLedPin, PinValue.Low);
+            gpio.Write(config.dataLedPin, PinValue.Low);
         }
     }
 }

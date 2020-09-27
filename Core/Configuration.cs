@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+﻿using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 
@@ -6,179 +6,100 @@ namespace AWS.Core
 {
     internal class Configuration
     {
-        public static Configuration Load(string filePath)
+        public string FilePath { get; private set; }
+
+        public int dataLedPin { get; private set; }
+        public int errorLedPin { get; private set; }
+        public int clockTickPin { get; private set; }
+        public dynamic sensors { get; private set; }
+
+        public Configuration(string filePath)
         {
-            JsonSerializerSettings settings = new JsonSerializerSettings();
-            settings.MissingMemberHandling = MissingMemberHandling.Error;
-
-            string json = File.ReadAllText(filePath);
-            Configuration config = JsonConvert.DeserializeObject<Configuration>(json, settings);
-
-            if (config.Sensors.Satellite1.WindSpeed.Enabled || config.Sensors.Satellite1.WindDirection.Enabled)
-                config.Sensors.Satellite1.Enabled = true;
-
-            return config;
+            FilePath = filePath;
         }
 
 
-
-        [JsonProperty("dataLEDPin")]
-        public int DataLedPin { get; set; }
-        [JsonProperty("errorLEDPin")]
-        public int ErrorLedPin { get; set; }
-        [JsonProperty("powerLEDPin")]
-        public int PowerLedPin { get; set; }
-
-        [JsonProperty("clockTickPin")]
-        public int ClockTickPin { get; set; }
-
-
-        [JsonProperty("logger")]
-        public ConfigLogger Logger { get; set; }
-
-        internal class ConfigLogger
+        public bool Load()
         {
+            dynamic jsonObject = JObject.Parse(File.ReadAllText(FilePath));
 
+            if (Validate(jsonObject))
+            {
+                dataLedPin = jsonObject.dataLedPin;
+                errorLedPin = jsonObject.errorLedPin;
+                clockTickPin = jsonObject.clockTickPin;
+                sensors = jsonObject.sensors;
+
+                if (sensors.satellite.windSpeed.enabled == true || sensors.satellite.windDirection.enabled == true)
+                    sensors.satellite.enabled = true;
+
+                return true;
+            }
+            else return false;
         }
 
-
-        [JsonProperty("transmitter")]
-        public ConfigTransmitter Transmitter { get; set; }
-
-        internal class ConfigTransmitter
+        private bool Validate(dynamic jsonObject)
         {
-            [JsonProperty("transmitReports")]
-            public bool TransmitReports { get; set; }
-        }
-
-
-        [JsonProperty("sensors")]
-        public ConfigSensors Sensors { get; set; }
-
-        public class ConfigSensors
-        {
-            [JsonProperty("airTemperature")]
-            public ConfigAirTemperature AirTemperature { get; set; }
-
-            [JsonProperty("relativeHumidity")]
-            public ConfigRelativeHumidity RelativeHumidity { get; set; }
-
-            [JsonProperty("satellite1")]
-            public ConfigSatellite1 Satellite1 { get; set; }
-
-            public class ConfigSatellite1
+            try
             {
-                [JsonIgnore]
-                public bool Enabled { get; set; }
+                if ((jsonObject.dataLedPin as JValue).Value.GetType() != typeof(long))
+                    return false;
+                if ((jsonObject.errorLedPin as JValue).Value.GetType() != typeof(long))
+                    return false;
+                if ((jsonObject.clockTickPin as JValue).Value.GetType() != typeof(long))
+                    return false;
 
-                [JsonProperty("windSpeed")]
-                public ConfigWindSpeed WindSpeed { get; set; }
+                if ((jsonObject.sensors.airTemperature.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if ((jsonObject.sensors.relativeHumidity.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if ((jsonObject.sensors.barometricPressure.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
 
-                [JsonProperty("windDirection")]
-                public ConfigWindDirection WindDirection { get; set; }
+                if ((jsonObject.sensors.satellite.windSpeed.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if (jsonObject.sensors.satellite.windSpeed.enabled == true &&
+                    (jsonObject.sensors.satellite.windSpeed.pin as JValue).Value.GetType() != typeof(long))
+                {
+                    return false;
+                }
+
+                if ((jsonObject.sensors.satellite.windDirection.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if (jsonObject.sensors.satellite.windDirection.enabled == true &&
+                    (jsonObject.sensors.satellite.windDirection.pin as JValue).Value.GetType() != typeof(long))
+                {
+                    return false;
+                }
+
+                if ((jsonObject.sensors.rainfall.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if (jsonObject.sensors.rainfall.enabled == true &&
+                    (jsonObject.sensors.rainfall.pin as JValue).Value.GetType() != typeof(long))
+                {
+                    return false;
+                }
+
+                if ((jsonObject.sensors.sunshineDuration.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if (jsonObject.sensors.sunshineDuration.enabled == true &&
+                    (jsonObject.sensors.sunshineDuration.pin as JValue).Value.GetType() != typeof(long))
+                {
+                    return false;
+                }
+
+                if ((jsonObject.sensors.soilTemperature10.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if ((jsonObject.sensors.soilTemperature30.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+                if ((jsonObject.sensors.soilTemperature100.enabled as JValue).Value.GetType() != typeof(bool))
+                    return false;
+
+                return true;
             }
-
-            [JsonProperty("rainfall")]
-            public ConfigRainfall Rainfall { get; set; }
-
-            [JsonProperty("barometricPressure")]
-            public ConfigBarometricPressure BarometricPressure { get; set; }
-
-            [JsonProperty("sunshineDuration")]
-            public ConfigSunshineDuration SunshineDuration { get; set; }
-
-            [JsonProperty("soilTemperature10")]
-            public ConfigSoilTemperature10 SoilTemperature10 { get; set; }
-
-            [JsonProperty("soilTemperature30")]
-            public ConfigSoilTemperature30 SoilTemperature30 { get; set; }
-
-            [JsonProperty("soilTemperature100")]
-            public ConfigSoilTemperature100 SoilTemperature100 { get; set; }
-
-
-            internal class ConfigAirTemperature
+            catch (NullReferenceException)
             {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
-            }
-
-            internal class ConfigRelativeHumidity
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-            }
-
-            internal class ConfigWindSpeed
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
-            }
-
-            internal class ConfigWindDirection
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
-            }
-
-            internal class ConfigRainfall
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
-            }
-
-            internal class ConfigBarometricPressure
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-            }
-
-            internal class ConfigSunshineDuration
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
-            }
-
-            internal class ConfigSoilTemperature10
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
-            }
-
-            internal class ConfigSoilTemperature30
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
-            }
-
-            internal class ConfigSoilTemperature100
-            {
-                [JsonProperty("enabled")]
-                public bool Enabled { get; set; }
-
-                [JsonProperty("pin")]
-                public int? Pin { get; set; }
+                return false;
             }
         }
     }
