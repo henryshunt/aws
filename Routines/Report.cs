@@ -30,8 +30,8 @@ namespace AWS.Routines
         public override string ToString()
         {
             return string.Format(
-                "T:{0:0.00}, H:{1:0.00}, WS:{3:0.00}, WD:{4}, WG:{5:0.00}, R:{6:0.000}, P:{2:0.00}",
-                AirTemperature, RelativeHumidity, BarometricPressure, WindSpeed, WindDirection,
+                "T:{0:0.0}, H:{1:0.0}, WS:{3:0.00}, WD:{4:0}, WG:{5:0.00}, R:{6:0.000}, P:{2:0.0}",
+                AirTemperature, RelativeHumidity, BarometricPressure, WindSpeed, WindDirection % 360,
                 WindGust, Rainfall);
         }
     }

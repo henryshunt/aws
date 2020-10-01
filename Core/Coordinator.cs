@@ -44,8 +44,11 @@ namespace AWS.Core
                 return;
             }
 
+            // Initialise LED indicators
             gpio = new GpioController(PinNumberingScheme.Logical);
+
             gpio.OpenPin(config.dataLedPin, PinMode.Output);
+            gpio.Write(config.dataLedPin, PinValue.Low);
             gpio.OpenPin(config.errorLedPin, PinMode.Output);
             gpio.Write(config.errorLedPin, PinValue.Low);
 
@@ -131,14 +134,12 @@ namespace AWS.Core
                 return;
             }
 
-
-            for (int i = 0; i < 8; i++)
-            {
-                gpio.Write(config.dataLedPin, PinValue.High);
-                Thread.Sleep(200);
-                gpio.Write(config.dataLedPin, PinValue.Low);
-                Thread.Sleep(200);
-            }
+            // Complete startup procedure
+            gpio.Write(config.dataLedPin, PinValue.High);
+            gpio.Write(config.errorLedPin, PinValue.High);
+            Thread.Sleep(5000);
+            gpio.Write(config.dataLedPin, PinValue.Low);
+            gpio.Write(config.errorLedPin, PinValue.Low);
 
             clock.Start();
             eventLogger.Info("Started scheduling clock");
@@ -152,10 +153,12 @@ namespace AWS.Core
             {
                 if (e.Time.Second == 0)
                 {
-                    sampler.Start(e.Time);
-
-                    isSampling = true;
-                    eventLogger.Info("Started sampling");
+                    if (sampler.Start(e.Time))
+                    {
+                        isSampling = true;
+                        eventLogger.Info("Started sampling");
+                    }
+                    else gpio.Write(config.errorLedPin, PinValue.High);
                 }
 
                 return;
