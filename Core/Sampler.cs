@@ -24,8 +24,9 @@ namespace AWS.Core
         private readonly List<KeyValuePair<DateTime, double>> windSpeed10MinStore = new List<KeyValuePair<DateTime, double>>();
         private readonly List<KeyValuePair<DateTime, int>> windDirection10MinStore = new List<KeyValuePair<DateTime, int>>();
 
-        private Satellite satellite1 = new Satellite();
+        private Mcp9808 mcp9808 = new Mcp9808();
         private BME680 bme680 = new BME680();
+        private Satellite satellite = new Satellite();
         private RainwiseRainew111 rainGauge = new RainwiseRainew111();
 
         public Sampler(Configuration config, GpioController gpio)
@@ -41,8 +42,20 @@ namespace AWS.Core
         /// <returns>An indication of success or failure.</returns>
         public bool Connect()
         {
-            if (config.sensors.airTemperature.enabled == true || config.sensors.relativeHumidity.enabled == true ||
-                config.sensors.barometricPressure.Enabled == true)
+            if (config.sensors.airTemperature.enabled == true)
+            {
+                try
+                {
+                    mcp9808.Initialise();
+                }
+                catch (Exception ex)
+                {
+                    eventLogger.Error(ex, "Failed to initialise MCP9808 sensor");
+                    return false;
+                }
+            }
+
+            if (config.sensors.relativeHumidity.enabled == true || config.sensors.barometricPressure.Enabled == true)
             {
                 try
                 {
@@ -73,15 +86,15 @@ namespace AWS.Core
 
                 try
                 {
-                    if (!satellite1.Initialise(1, satelliteConfig))
+                    if (!satellite.Initialise(1, satelliteConfig))
                     {
-                        eventLogger.Error("Failed to initialise satellite device 1");
+                        eventLogger.Error("Failed to initialise satellite device");
                         return false;
                     }
                 }
                 catch (Exception ex)
                 {
-                    eventLogger.Error(ex, "Failed to initialise satellite device 1");
+                    eventLogger.Error(ex, "Failed to initialise satellite device");
                     return false;
                 }
             }
@@ -116,7 +129,7 @@ namespace AWS.Core
             startTime = time;
 
             if (config.sensors.satellite.enabled == true)
-                satellite1.Start();
+                satellite.Start();
 
             if (config.sensors.rainfall.enabled == true)
                 rainGauge.Start();
@@ -138,23 +151,25 @@ namespace AWS.Core
                 throw new WorkflowOrderException("You must call Start() first.");
 
             // Sample the satellite first since it resets the wind speed counter
-            if (config.sensors.satellite.enabled == true && satellite1.Sample())
+            if (config.sensors.satellite.enabled == true && satellite.Sample())
             {
-                if (satellite1.LatestSample.WindSpeed != null)
+                if (satellite.LatestSample.WindSpeed != null)
                 {
                     sampleStore.ActiveSampleStore.WindSpeed.Add(
-                        new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindSpeed));
+                        new KeyValuePair<DateTime, int>(time, (int)satellite.LatestSample.WindSpeed));
                 }
 
-                if (satellite1.LatestSample.WindDirection != null)
+                if (satellite.LatestSample.WindDirection != null)
                 {
                     sampleStore.ActiveSampleStore.WindDirection.Add(
-                        new KeyValuePair<DateTime, int>(time, (int)satellite1.LatestSample.WindDirection));
+                        new KeyValuePair<DateTime, int>(time, (int)satellite.LatestSample.WindDirection));
                 }
             }
 
+            if (config.sensors.airTemperature.enabled == true)
+                sampleStore.ActiveSampleStore.AirTemperature.Add(mcp9808.Sample());
+
             Tuple<double, double, double> bme680Sample = bme680.Sample();
-            sampleStore.ActiveSampleStore.AirTemperature.Add(bme680Sample.Item1);
             sampleStore.ActiveSampleStore.RelativeHumidity.Add(bme680Sample.Item2);
             sampleStore.ActiveSampleStore.BarometricPressure.Add(bme680Sample.Item3);
 

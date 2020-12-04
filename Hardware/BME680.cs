@@ -12,7 +12,6 @@ namespace AWS.Hardware
         private Bme680 Device;
         private int SampleWaitTime;
 
-
         public void Initialise()
         {
             Device = new Bme680(I2cDevice.Create(new I2cConnectionSettings(1, Bme680.DefaultI2cAddress)));
