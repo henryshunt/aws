@@ -10,7 +10,7 @@ namespace AWS.Core
 {
     internal class Coordinator
     {
-        private static readonly Logger eventLogger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
         private Configuration config;
         private Clock clock;
@@ -23,7 +23,7 @@ namespace AWS.Core
 
         public void Startup()
         {
-            eventLogger.Info("Began AWS startup procedure");
+            logger.Info("Began AWS startup procedure");
 
             // Load configuration
             try
@@ -32,15 +32,15 @@ namespace AWS.Core
 
                 if (!config.Load())
                 {
-                    eventLogger.Error("Invalid configuration file");
+                    logger.Error("Invalid configuration file");
                     return;
                 }
 
-                eventLogger.Info("Loaded configuration file");
+                logger.Info("Loaded configuration file");
             }
             catch (Exception ex)
             {
-                eventLogger.Error(ex, "Error while loading configuration file");
+                logger.Error(ex, "Error while loading configuration file");
                 return;
             }
 
@@ -58,21 +58,23 @@ namespace AWS.Core
                 clock = new Clock(config.clockTickPin, gpio);
                 clock.Ticked += Clock_Ticked;
 
-                if (!clock.IsClockDateTimeValid)
+                clock.Open();
+
+                if (!clock.IsDateTimeValid)
                 {
-                    eventLogger.Error("Scheduling clock time is invalid");
+                    logger.Error("Scheduling clock time is invalid");
                     gpio.Write(config.errorLedPin, PinValue.High);
                     return;
                 }
 
                 startupTime = clock.DateTime;
 
-                eventLogger.Info("Initialised scheduling clock");
-                eventLogger.Info("Time is {0}", startupTime.ToString("dd/MM/yyyy HH:mm:ss"));
+                logger.Info("Initialised scheduling clock");
+                logger.Info("Time is {0}", startupTime.ToString("dd/MM/yyyy HH:mm:ss"));
             }
             catch (Exception ex)
             {
-                eventLogger.Error(ex, "Error while initialising scheduling clock");
+                logger.Error(ex, "Error while initialising scheduling clock");
                 gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
@@ -83,12 +85,12 @@ namespace AWS.Core
                 if (!Directory.Exists(Helpers.DATA_DIRECTORY))
                 {
                     Directory.CreateDirectory(Helpers.DATA_DIRECTORY);
-                    eventLogger.Info("Created data directory");
+                    logger.Info("Created data directory");
                 }
             }
             catch (Exception ex)
             {
-                eventLogger.Error(ex, "Error while creating data directory");
+                logger.Error(ex, "Error while creating data directory");
                 gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
@@ -99,12 +101,12 @@ namespace AWS.Core
                 if (!Database.Exists(Database.DatabaseFile.Data))
                 {
                     Database.Create(Database.DatabaseFile.Data);
-                    eventLogger.Info("Created data database");
+                    logger.Info("Created data database");
                 }
             }
             catch (Exception ex)
             {
-                eventLogger.Error(ex, "Error while creating data database");
+                logger.Error(ex, "Error while creating data database");
                 gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
@@ -142,7 +144,7 @@ namespace AWS.Core
             gpio.Write(config.errorLedPin, PinValue.Low);
 
             clock.Start();
-            eventLogger.Info("Started scheduling clock");
+            logger.Info("Started scheduling clock");
 
             Console.ReadKey();
         }
@@ -156,7 +158,7 @@ namespace AWS.Core
                     if (sampler.Start(e.Time))
                     {
                         isSampling = true;
-                        eventLogger.Info("Started sampling");
+                        logger.Info("Started sampling");
                     }
                     else gpio.Write(config.errorLedPin, PinValue.High);
                 }

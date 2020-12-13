@@ -1,5 +1,6 @@
 ﻿using AWS.Routines;
 using NLog;
+using NLog.Config;
 using NLog.Layouts;
 using NLog.Targets;
 using System;
@@ -8,23 +9,22 @@ namespace AWS
 {
     internal class Program
     {
-        private static readonly Logger eventLogger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
         static void Main(string[] args)
         {
             ConfigureLogging();
 
-            new Core.Coordinator().Startup();
-
-            // Log any (unexpected) uncaught exceptions in the program
+            // Log any uncaught exceptions anywhere in the program
             AppDomain.CurrentDomain.FirstChanceException +=
-                (sender, e) => eventLogger.Error(e.Exception, "Uncaught exception");
+                (sender, e) => logger.Error(e.Exception, "Uncaught exception");
 
+            new Core.Coordinator().Startup();
         }
 
         private static void ConfigureLogging()
         {
-            var loggingConfig = new NLog.Config.LoggingConfiguration();
+            LoggingConfiguration loggingConfig = new LoggingConfiguration();
 
             string loggingLayout = "${level:uppercase=true} | ${logger} -- ${message}" +
                 "${onexception:inner=${newline}${exception:format=tostring}}";
