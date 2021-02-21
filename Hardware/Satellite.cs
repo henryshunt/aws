@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Threading;
 
-namespace AWS.Hardware
+namespace Aws.Hardware
 {
     internal class Satellite
     {

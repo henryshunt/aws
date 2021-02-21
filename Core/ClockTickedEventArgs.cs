@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AWS.Core
+namespace Aws.Core
 {
     internal class ClockTickedEventArgs : EventArgs
     {

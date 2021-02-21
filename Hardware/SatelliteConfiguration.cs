@@ -1,4 +1,4 @@
-﻿namespace AWS.Hardware
+﻿namespace Aws.Hardware
 {
     internal class SatelliteConfiguration
     {

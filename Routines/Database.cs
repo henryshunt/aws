@@ -2,9 +2,9 @@
 using System;
 using System.IO;
 using System.Linq.Expressions;
-using static AWS.Routines.Helpers;
+using static Aws.Routines.Helpers;
 
-namespace AWS.Routines
+namespace Aws.Routines
 {
     internal static class Database
     {

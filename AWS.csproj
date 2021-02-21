@@ -1,28 +1,25 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.3" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="NLog" Version="4.7.5" />
+    <PackageReference Include="NLog" Version="4.7.7" />
     <PackageReference Include="System.IO.Ports" Version="5.0.0" />
+    <PackageReference Include="UnitsNet" Version="4.83.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Iot.Device.Bindings">
-      <HintPath>..\iot\artifacts\bin\Iot.Device.Bindings\Debug\netcoreapp2.1\Iot.Device.Bindings.dll</HintPath>
+      <HintPath>..\iot\artifacts\bin\Iot.Device.Bindings\Debug\net5.0\Iot.Device.Bindings.dll</HintPath>
     </Reference>
     <Reference Include="System.Device.Gpio">
-      <HintPath>..\iot\artifacts\bin\Iot.Device.Bindings\Debug\netcoreapp2.1\System.Device.Gpio.dll</HintPath>
+      <HintPath>..\iot\artifacts\bin\Iot.Device.Bindings\Debug\net5.0\System.Device.Gpio.dll</HintPath>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Properties\PublishProfiles\" />
   </ItemGroup>
 
 </Project>

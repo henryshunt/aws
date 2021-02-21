@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 
-namespace AWS.Core
+namespace Aws.Core
 {
     internal class Configuration
     {

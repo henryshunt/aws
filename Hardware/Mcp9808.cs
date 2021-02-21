@@ -1,6 +1,6 @@
 ﻿using System.Device.I2c;
 
-namespace AWS.Hardware
+namespace Aws.Hardware
 {
     internal class Mcp9808
     {
@@ -14,7 +14,7 @@ namespace AWS.Hardware
 
         public double Sample()
         {
-            return device.Temperature.Celsius;
+            return device.Temperature.DegreesCelsius;
         }
     }
 }

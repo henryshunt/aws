@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AWS.Routines
+namespace Aws.Routines
 {
     internal class WorkflowOrderException : Exception
     {

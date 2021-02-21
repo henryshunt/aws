@@ -3,7 +3,7 @@ using System;
 using System.Device.Gpio;
 using System.Device.I2c;
 
-namespace AWS.Core
+namespace Aws.Core
 {
     internal class Clock
     {
@@ -13,7 +13,7 @@ namespace AWS.Core
         private Ds3231 ds3231;
 
         public DateTime DateTime => ds3231.DateTime;
-        public bool IsDateTimeValid => ds3231.IsDateTimeValid;
+        //public bool IsDateTimeValid => ds3231.IsDateTimeValid;
 
         public event EventHandler<ClockTickedEventArgs> Ticked;
 
@@ -39,8 +39,10 @@ namespace AWS.Core
             gpio.SetPinMode(sqwPin, PinMode.Input);
             gpio.RegisterCallbackForPinValueChangedEvent(sqwPin, PinEventTypes.Falling, OnSqwInterrupt);
 
-            ds3231.SetAlarm1(new Ds3231Alarm1(0, 0, 0, 0, Ds3231Alarm1MatchMode.OncePerSecond));
-            ds3231.EnabledAlarm = Ds3231Alarm.Alarm1;
+            Ds3231AlarmOne alarm = new Ds3231AlarmOne(0, new TimeSpan(0, 0, 0, 0, 0),
+                Ds3231AlarmOneMatchMode.OncePerSecond);
+            ds3231.SetAlarmOne(alarm);
+            ds3231.EnabledAlarm = Ds3231Alarm.AlarmOne;
         }
 
         private void OnSqwInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)

@@ -1,11 +1,11 @@
-﻿using AWS.Routines;
+﻿using Aws.Routines;
 using NLog;
 using NLog.Config;
 using NLog.Layouts;
 using NLog.Targets;
 using System;
 
-namespace AWS
+namespace Aws
 {
     internal class Program
     {

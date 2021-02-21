@@ -1,4 +1,4 @@
-﻿using AWS.Routines;
+﻿using Aws.Routines;
 using NLog;
 using System;
 using System.Device.Gpio;
@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
-namespace AWS.Core
+namespace Aws.Core
 {
     internal class Coordinator
     {
@@ -60,12 +60,12 @@ namespace AWS.Core
 
                 clock.Open();
 
-                if (!clock.IsDateTimeValid)
-                {
-                    logger.Error("Scheduling clock time is invalid");
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    return;
-                }
+                //if (!clock.IsDateTimeValid)
+                //{
+                //    logger.Error("Scheduling clock time is invalid");
+                //    gpio.Write(config.errorLedPin, PinValue.High);
+                //    return;
+                //}
 
                 startupTime = clock.DateTime;
 

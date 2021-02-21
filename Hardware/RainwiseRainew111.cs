@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Device.Gpio;
 
-namespace AWS.Hardware
+namespace Aws.Hardware
 {
     internal class RainwiseRainew111
     {

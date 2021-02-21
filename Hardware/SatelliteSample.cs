@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace AWS.Hardware
+namespace Aws.Hardware
 {
     internal class SatelliteSample
     {

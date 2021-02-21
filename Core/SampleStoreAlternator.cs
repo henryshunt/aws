@@ -1,4 +1,4 @@
-﻿namespace AWS.Core
+﻿namespace Aws.Core
 {
     internal class SampleStoreAlternator
     {

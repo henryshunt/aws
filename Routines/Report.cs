@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace AWS.Routines
+namespace Aws.Routines
 {
     internal class Report
     {

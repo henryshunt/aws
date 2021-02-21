@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace AWS.Routines
+namespace Aws.Routines
 {
     internal static class Helpers
     {

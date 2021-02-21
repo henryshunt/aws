@@ -1,5 +1,5 @@
-﻿using AWS.Hardware;
-using AWS.Routines;
+﻿using Aws.Hardware;
+using Aws.Routines;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Device.Gpio;
 using System.Linq;
 using System.Numerics;
 
-namespace AWS.Core
+namespace Aws.Core
 {
     internal class Sampler
     {

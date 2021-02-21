@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace AWS.Core
+namespace Aws.Core
 {
     internal class SampleStore
     {
