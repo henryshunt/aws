@@ -442,7 +442,7 @@ namespace Aws.Core
                 }
 
                 if (vectors.Count > 0)
-                    windDirection = ((int)Math.Round(Helpers.AverageWindDirection(vectors))) % 360;
+                    windDirection = ((int)Math.Round(Helpers.CalculateWindDirection(vectors))) % 360;
             }
 
             return (windSpeed, windGust, windDirection);

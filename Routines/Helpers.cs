@@ -30,24 +30,23 @@ namespace Aws.Routines
             Console.WriteLine(line);
         }
 
-        public static double AverageWindDirection(List<Vector> vectors)
+        public static double CalculateWindDirection(List<Vector> vectors)
         {
-            List<double> V_east = new List<double>();
-            List<double> V_north = new List<double>();
+            List<double> east = new List<double>();
+            List<double> north = new List<double>();
 
             foreach (Vector vector in vectors)
             {
-                V_east.Add(vector.Magnitude * Math.Sin(vector.Direction * Math.PI / 180));
-                V_north.Add(vector.Magnitude * Math.Cos(vector.Direction * Math.PI / 180));
+                east.Add(vector.Magnitude * Math.Sin(vector.Direction * Math.PI / 180));
+                north.Add(vector.Magnitude * Math.Cos(vector.Direction * Math.PI / 180));
             }
 
-            double ve = V_east.Sum() / vectors.Count;
-            double vn = V_north.Sum() / vectors.Count;
+            double eastAverage = east.Sum() / vectors.Count;
+            double northAverage = north.Sum() / vectors.Count;
 
-            double mean_WD = Math.Atan2(ve, vn) * 180 / Math.PI;
-            mean_WD = (360 + mean_WD) % 360;
-
-            return mean_WD;
+            double direction = Math.Atan2(eastAverage, northAverage) * 180 / Math.PI;
+            direction = (360 + direction) % 360;
+            return direction;
         }
 
         public static double CalculateDewPoint(double temperature, double humidity)
