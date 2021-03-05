@@ -352,6 +352,12 @@ namespace Aws.Core
             if (store.BarometricPressure.Count > 0)
                 report.BarometricPressure = Math.Round(store.BarometricPressure.Average());
 
+            if (report.AirTemperature != null && report.RelativeHumidity != null)
+            {
+                report.DewPoint = Helpers.CalculateDewPoint(
+                    (double)report.AirTemperature, (double)report.RelativeHumidity);
+            }
+
             Console.WriteLine(report.ToString());
             return report;
         }

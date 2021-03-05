@@ -49,5 +49,13 @@ namespace Aws.Routines
 
             return mean_WD;
         }
+
+        public static double CalculateDewPoint(double temperature, double humidity)
+        {
+            double ea = (8.082 - temperature / 556.0) * temperature;
+            double e = 0.4343 * Math.Log(humidity / 100) + ea / (256.1 + temperature);
+            double sr = Math.Sqrt(Math.Pow(8.0813 - e, 2) - (1.842 * e));
+            return 278.04 * (8.0813 - e - sr);
+        }
     }
 }

@@ -18,9 +18,6 @@ namespace Aws.Routines
         public double? BarometricPressure { get; set; } = null;
         public double? MslPressure { get; set; } = null;
         public int? SunshineDuration { get; set; } = null;
-        public double? SoilTemperature10 { get; set; } = null;
-        public double? SoilTemperature30 { get; set; } = null;
-        public double? SoilTemperature100 { get; set; } = null;
 
         public Report(DateTime time)
         {
@@ -30,9 +27,9 @@ namespace Aws.Routines
         public override string ToString()
         {
             return string.Format(
-                "T:{0:0.0}, H:{1:0.0}, WS:{3:0.0}, WD:{4:0}, WG:{5:0.0}, R:{6:0.000}, P:{2:0.0}",
-                AirTemperature, RelativeHumidity, BarometricPressure, WindSpeed, WindDirection % 360,
-                WindGust, Rainfall);
+                "{0} -- T:{1:0.0}, H:{2:0.0}, DP:{3:0.0}, WS:{4:0.0}, WG:{5:0.0}, WD:{6:0}, R:{7:0.000}, P:{8:0.0}",
+                Time, AirTemperature, RelativeHumidity, DewPoint, WindSpeed, WindGust, WindDirection,
+                Rainfall, BarometricPressure);
         }
     }
 }
