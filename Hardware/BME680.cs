@@ -12,7 +12,7 @@ namespace Aws.Hardware
         private Bme680 Device;
         private double SampleWaitTime;
 
-        public void Initialise()
+        public void Open()
         {
             Device = new Bme680(I2cDevice.Create(new I2cConnectionSettings(1, Bme680.DefaultI2cAddress)));
             SampleWaitTime = Device.GetMeasurementDuration(Device.HeaterProfile).Milliseconds;

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Aws.Routines;
+using Newtonsoft.Json;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Threading;
@@ -7,10 +8,17 @@ namespace Aws.Hardware
 {
     internal class Satellite
     {
+        private readonly int id;
+        private readonly SatelliteConfiguration config;
         private SerialPort device;
-        public SatelliteSample LatestSample { get; private set; }
 
-        public bool Initialise(int id, SatelliteConfiguration configuration)
+        public Satellite(int id, SatelliteConfiguration config)
+        {
+            this.id = id;
+            this.config = config;
+        }
+
+        public void Open()
         {
             foreach (string serialPort in SerialPort.GetPortNames())
             {
@@ -40,7 +48,7 @@ namespace Aws.Hardware
                     {
                         if (int.Parse(response) == id)
                         {
-                            response = SendCommand(device, "CONFIG " + configuration.ToString() + "\n");
+                            response = SendCommand(device, "CONFIG " + config.ToString() + "\n");
 
                             if (response == "OK")
                             {
@@ -55,7 +63,8 @@ namespace Aws.Hardware
                 device.Close();
             }
 
-            return device != null;
+            if (device == null)
+                throw new SensorException("Satellite not found");
         }
 
         public bool Start()
@@ -63,22 +72,23 @@ namespace Aws.Hardware
             return SendCommand(device, "START\n") == "OK";
         }
 
-        public bool Sample()
+        public SatelliteSample Sample()
         {
             string response = SendCommand(device, "SAMPLE\n");
 
             if (response == null || response == "ERROR")
-                return false;
+                throw new SensorException("Error sampling satellite");
 
             try
             {
                 JsonSerializerSettings settings = new JsonSerializerSettings();
                 settings.MissingMemberHandling = MissingMemberHandling.Error;
-
-                LatestSample = JsonConvert.DeserializeObject<SatelliteSample>(response, settings);
-                return true;
+                return JsonConvert.DeserializeObject<SatelliteSample>(response, settings);
             }
-            catch { return false; }
+            catch
+            {
+                throw new SensorException("Error sampling satellite");
+            }
         }
 
         private string SendCommand(SerialPort serialPort, string command)

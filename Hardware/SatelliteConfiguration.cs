@@ -2,20 +2,20 @@
 {
     internal class SatelliteConfiguration
     {
-        public bool WindSpeedEnabled { get; set; } = false;
-        public int WindSpeedPin { get; set; }
-        public bool WindDirectionEnabled { get; set; } = false;
-        public int WindDirectionPin { get; set; }
+        public bool I8paEnabled { get; set; } = false;
+        public int I8paPin { get; set; }
+        public bool Iev2Enabled { get; set; } = false;
+        public int Iev2Pin { get; set; }
 
         public override string ToString()
         {
-            string result = "{\"windSpeedEnabled\":" + WindSpeedEnabled.ToString().ToLower();
-            if (WindSpeedEnabled)
-                result += ",\"windSpeedPin\":" + WindSpeedPin.ToString().ToLower();
+            string result = "{\"windSpeedEnabled\":" + I8paEnabled.ToString().ToLower();
+            if (I8paEnabled)
+                result += ",\"windSpeedPin\":" + I8paPin.ToString().ToLower();
 
-            result += ",\"windDirectionEnabled\":" + WindDirectionEnabled.ToString().ToLower();
-            if (WindDirectionEnabled)
-                result += ",\"windDirectionPin\":" + WindDirectionPin.ToString().ToLower();
+            result += ",\"windDirectionEnabled\":" + Iev2Enabled.ToString().ToLower();
+            if (Iev2Enabled)
+                result += ",\"windDirectionPin\":" + Iev2Pin.ToString().ToLower();
 
             return result + "}";
         }

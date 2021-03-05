@@ -35,10 +35,10 @@ namespace Aws.Routines
             using (SqliteConnection connection = Connect(database))
             {
                 connection.Open();
-                string sql = "CREATE TABLE reports (time TEXT PRIMARY KEY, air_temperature REAL, " +
-                    "relative_humidity REAL, dew_point REAL, wind_speed REAL, wind_direction INTEGER, " +
-                    "wind_gust_speed REAL, wind_gust_direction INTEGER, rainfall REAL, station_pressure REAL, " +
-                    "msl_pressure REAL, soil_temperature_10 REAL, soil_temperature_30 REAL, soil_temperature_100 REAL)";
+                string sql = "CREATE TABLE reports (time TEXT PRIMARY KEY, " +
+                    "airTemp REAL, relHum REAL, dewPoint REAL, windSpeed REAL, " +
+                    "windDir INTEGER, windGust REAL, rainfall REAL, staPres REAL, " +
+                    "mslPres REAL)";
 
                 SqliteCommand query = new SqliteCommand(sql, connection);
                 query.ExecuteNonQuery();
@@ -50,18 +50,16 @@ namespace Aws.Routines
             using (SqliteConnection connection = Connect(DatabaseFile.Data))
             {
                 connection.Open();
-                string sql = "INSERT INTO reports (time, air_temperature, relative_humidity, dew_point, wind_speed, " +
-                    "wind_direction, wind_gust_speed, rainfall, station_pressure, msl_pressure, " +
-                    "soil_temperature_10, soil_temperature_30, soil_temperature_100) VALUES (@Time, @AirTemperature, " +
-                    "@RelativeHumidity, @DewPoint, @WindSpeed, @WindDirection, @WindGustSpeed, " +
-                    "@Rainfall, @StationPressure, @MSLPressure, @SoilTemperature10, @SoilTemperature30, " +
-                    "@SoilTemperature100)";
+                string sql = "INSERT INTO reports VALUES (@Time, @AirTemperature, " +
+                    "@RelativeHumidity, @DewPoint, @WindSpeed, @WindDirection, @WindGust, " +
+                    "@Rainfall, @StationPressure, @MslPressure)";
 
                 SqliteCommand query = new SqliteCommand(sql, connection);
                 query.CommandText = sql;
                 query.Connection = connection;
 
-                query.Parameters.AddWithValue("@Time", report.Time.ToString("dd/MM/yyyy HH:mm:ss"));
+                query.Parameters.AddWithValue(
+                    "@Time", report.Time.ToString("yyyy-MM-dd HH:mm:ss"));
 
                 if (report.AirTemperature == null)
                     query.Parameters.AddWithValue("@AirTemperature", DBNull.Value);
@@ -84,8 +82,8 @@ namespace Aws.Routines
                 else query.Parameters.AddWithValue("@WindDirection", report.WindDirection);
 
                 if (report.WindGust == null)
-                    query.Parameters.AddWithValue("@WindGustSpeed", DBNull.Value);
-                else query.Parameters.AddWithValue("@WindGustSpeed", report.WindGust);
+                    query.Parameters.AddWithValue("@WindGust", DBNull.Value);
+                else query.Parameters.AddWithValue("@WindGust", report.WindGust);
 
                 if (report.Rainfall == null)
                     query.Parameters.AddWithValue("@Rainfall", DBNull.Value);
@@ -96,20 +94,8 @@ namespace Aws.Routines
                 else query.Parameters.AddWithValue("@StationPressure", report.BarometricPressure);
 
                 if (report.MslPressure == null)
-                    query.Parameters.AddWithValue("@MSLPressure", DBNull.Value);
-                else query.Parameters.AddWithValue("@MSLPressure", report.MslPressure);
-
-                if (report.SoilTemperature10 == null)
-                    query.Parameters.AddWithValue("@SoilTemperature10", DBNull.Value);
-                else query.Parameters.AddWithValue("@SoilTemperature10", report.SoilTemperature10);
-
-                if (report.SoilTemperature30 == null)
-                    query.Parameters.AddWithValue("@SoilTemperature30", DBNull.Value);
-                else query.Parameters.AddWithValue("@SoilTemperature30", report.SoilTemperature30);
-
-                if (report.SoilTemperature100 == null)
-                    query.Parameters.AddWithValue("@SoilTemperature100", DBNull.Value);
-                else query.Parameters.AddWithValue("@SoilTemperature100", report.SoilTemperature100);
+                    query.Parameters.AddWithValue("@MslPressure", DBNull.Value);
+                else query.Parameters.AddWithValue("@MslPressure", report.MslPressure);
 
                 query.ExecuteReader();
             }

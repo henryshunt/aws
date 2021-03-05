@@ -23,19 +23,19 @@ namespace Aws.Core
         {
             dynamic jsonObject = JObject.Parse(File.ReadAllText(FilePath));
 
-            if (Validate(jsonObject))
-            {
-                dataLedPin = jsonObject.dataLedPin;
-                errorLedPin = jsonObject.errorLedPin;
-                clockTickPin = jsonObject.clockTickPin;
-                sensors = jsonObject.sensors;
+            //if (Validate(jsonObject))
+            //{
+            dataLedPin = jsonObject.dataLedPin;
+            errorLedPin = jsonObject.errorLedPin;
+            clockTickPin = jsonObject.clockTickPin;
+            sensors = jsonObject.sensors;
 
-                if (sensors.satellite.windSpeed.enabled == true || sensors.satellite.windDirection.enabled == true)
-                    sensors.satellite.enabled = true;
+            if (sensors.satellite.i8pa.enabled == true || sensors.satellite.iev2.enabled == true)
+                sensors.satellite.enabled = true;
 
-                return true;
-            }
-            else return false;
+            return true;
+            //}
+            //else return false;
         }
 
         private bool Validate(dynamic jsonObject)
@@ -64,10 +64,10 @@ namespace Aws.Core
                     return false;
                 }
 
-                if ((jsonObject.sensors.satellite.windDirection.enabled as JValue).Value.GetType() != typeof(bool))
+                if ((jsonObject.sensors.satellite.windDir.enabled as JValue).Value.GetType() != typeof(bool))
                     return false;
-                if (jsonObject.sensors.satellite.windDirection.enabled == true &&
-                    (jsonObject.sensors.satellite.windDirection.pin as JValue).Value.GetType() != typeof(long))
+                if (jsonObject.sensors.satellite.windDir.enabled == true &&
+                    (jsonObject.sensors.satellite.windDir.pin as JValue).Value.GetType() != typeof(long))
                 {
                     return false;
                 }

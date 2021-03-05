@@ -18,15 +18,27 @@ namespace Aws.Routines
             Restart    // Terminates the software and restarts the station computer
         }
 
-        public static double AverageWindDirection(List<(double, double)> vectors)
+        public static void LogEvent(DateTime? time, string source, string message)
+        {
+            string line = "";
+
+            if (time != null)
+                line += ((DateTime)time).ToString("[yyyy-MM-dd HH:mm:ss]");
+            else line += "[      NO TIME      ]";
+
+            line += string.Format(" {0}: {1}", source, message);
+            Console.WriteLine(line);
+        }
+
+        public static double AverageWindDirection(List<Vector> vectors)
         {
             List<double> V_east = new List<double>();
             List<double> V_north = new List<double>();
 
-            foreach ((double, double) vector in vectors)
+            foreach (Vector vector in vectors)
             {
-                V_east.Add(vector.Item1 * Math.Sin(vector.Item2 * Math.PI / 180));
-                V_north.Add(vector.Item1 * Math.Cos(vector.Item2 * Math.PI / 180));
+                V_east.Add(vector.Magnitude * Math.Sin(vector.Direction * Math.PI / 180));
+                V_north.Add(vector.Magnitude * Math.Cos(vector.Direction * Math.PI / 180));
             }
 
             double ve = V_east.Sum() / vectors.Count;

@@ -45,6 +45,14 @@ namespace Aws.Core
             ds3231.EnabledAlarm = Ds3231Alarm.AlarmOne;
         }
 
+        public void Stop()
+        {
+            gpio.UnregisterCallbackForPinValueChangedEvent(sqwPin, OnSqwInterrupt);
+
+            ds3231.EnabledAlarm = Ds3231Alarm.None;
+            ds3231.ResetAlarmTriggeredStates();
+        }
+
         private void OnSqwInterrupt(object sender, PinValueChangedEventArgs pinValueChangedEventArgs)
         {
             ds3231.ResetAlarmTriggeredStates();

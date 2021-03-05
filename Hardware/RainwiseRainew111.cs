@@ -11,11 +11,14 @@ namespace Aws.Hardware
         private bool isStarted = false;
         private int counter = 0;
 
-        public void Initialise(GpioController gpio, int pin)
+        public RainwiseRainew111(GpioController gpio, int pin)
         {
             this.gpio = gpio;
             this.pin = pin;
+        }
 
+        public void Open()
+        {
             gpio.OpenPin(pin, PinMode.InputPullUp);
         }
 
