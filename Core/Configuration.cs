@@ -12,6 +12,7 @@ namespace Aws.Core
         public int errorLedPin { get; private set; }
         public int clockTickPin { get; private set; }
         public dynamic sensors { get; private set; }
+        public TimeZoneInfo timeZone { get; private set; }
 
         public Configuration(string filePath)
         {
@@ -32,6 +33,8 @@ namespace Aws.Core
 
             if (sensors.satellite.i8pa.enabled == true || sensors.satellite.iev2.enabled == true)
                 sensors.satellite.enabled = true;
+
+            timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
 
             return true;
             //}

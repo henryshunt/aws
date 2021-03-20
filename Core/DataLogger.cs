@@ -1,5 +1,6 @@
 ﻿using Aws.Hardware;
 using Aws.Routines;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Device.Gpio;
@@ -304,6 +305,13 @@ namespace Aws.Core
                 UpdateWindStores(time, store);
                 Database.WriteReport(GenerateReport(time, store));
 
+                // At start of new day, recalculate previous day because it needs to include the
+                // data reported at 00:00:00 of the new day
+                if (time.Hour == 0 && time.Minute == 0)
+                    CalculateDailyStatistics(time - new TimeSpan(0, 1, 0));
+
+                CalculateDailyStatistics(time);
+
                 // Keep the LED on for at least 1.5 seconds
                 timer.Stop();
                 if (timer.ElapsedMilliseconds < 1500)
@@ -354,8 +362,8 @@ namespace Aws.Core
 
             if (report.AirTemperature != null && report.RelativeHumidity != null)
             {
-                report.DewPoint = Helpers.CalculateDewPoint(
-                    (double)report.AirTemperature, (double)report.RelativeHumidity);
+                report.DewPoint = Math.Round(Helpers.CalculateDewPoint(
+                    (double)report.AirTemperature, (double)report.RelativeHumidity), 1);
             }
 
             Console.WriteLine(report.ToString());
@@ -446,6 +454,127 @@ namespace Aws.Core
             }
 
             return (windSpeed, windGust, windDirection);
+        }
+
+        /// <summary>
+        /// Calculates various statistics for the local day and writes them to the database.
+        /// </summary>
+        /// <param name="time">The UTC time to create the statistics for.</param>
+        private void CalculateDailyStatistics(DateTime time)
+        {
+            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.timeZone);
+            DateTime start = new DateTime(local.Year, local.Month, local.Day, 0, 1, 0);
+            DateTime end = start + new TimeSpan(1, 0, 0, 0) - new TimeSpan(0, 1, 0);
+
+            start = TimeZoneInfo.ConvertTimeToUtc(start);
+            end = TimeZoneInfo.ConvertTimeToUtc(end);
+
+            using (SqliteConnection connection = Database.Connect(Database.DatabaseFile.Data))
+            {
+                connection.Open();
+
+                string sql = "SELECT " +
+                    "ROUND(AVG(airTemp), 1) AS airTempAvg, MIN(airTemp) AS airTempMin, MAX(airTemp) AS airTempMax, " +
+                    "ROUND(AVG(relHum), 1) AS relHumAvg, MIN(relHum) AS relHumMin, MAX(relHum) AS relHumMax, " +
+                    "ROUND(AVG(windSpeed), 1) AS windSpeedAvg, MIN(windSpeed) AS windSpeedMin, MAX(windSpeed) AS windSpeedMax, " +
+                    //"ATAN2(AVG(windSpeed * SIN(windDir * PI() / 180)), AVG(windSpeed * COS(windDir * PI() / 180))) * 180 / PI() as windDirAvg, " +
+                    "ROUND(AVG(windGust), 1) AS windGustAvg, MIN(windGust) AS windGustMin, MAX(windGust) AS windGustMax, " +
+                    "SUM(rainfall) AS rainfallTtl, SUM(sunDur) AS sunDurTtl, " +
+                    "ROUND(AVG(mslPres), 1) AS mslPresAvg, MIN(mslPres) AS mslPresMin, MAX(mslPres) AS mslPresMax " +
+                    "FROM reports WHERE time BETWEEN @start AND @end";
+
+                SqliteCommand query = new SqliteCommand(sql, connection);
+                query.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd HH:mm:ss"));
+                query.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd HH:mm:ss"));
+
+                SqliteDataReader reader = query.ExecuteReader();
+                reader.Read();
+
+                sql = "INSERT INTO dayStats VALUES (" +
+                    "@date, @airTempAvg, @airTempMin, @airTempMax, @relHumAvg, @relHumMin, @relHumMax, " +
+                    "@windSpeedAvg, @windSpeedMin, @windSpeedMax, NULL, @windGustAvg, @windGustMin, @windGustMax, " +
+                    "@rainfallTtl, @sunDurTtl, @mslPresAvg, @mslPresMin, @mslPresMax) " +
+                    "ON CONFLICT (date) " +
+                    "DO UPDATE SET airTempAvg = @airTempAvg, airTempMin = @airTempMin, airTempMax = @airTempMax, " +
+                    "relHumAvg = @relHumAvg, relHumMin = @relHumMin, relHumMax = @relHumMax, " +
+                    "windSpeedAvg = @windSpeedAvg, windSpeedMin = @windSpeedMin, windSpeedMax = @windSpeedMax, " +
+                    "windGustAvg = @windGustAvg, windGustMin = @windGustMin, windGustMax = @windGustMax, " +
+                    "rainfallTtl = @rainfallTtl, sunDurTtl = @sunDurTtl, mslPresAvg = @mslPresAvg, " +
+                    "mslPresMin = @mslPresMin, mslPresMax = @mslPresMax";
+
+                query = new SqliteCommand(sql, connection);
+                query.Parameters.AddWithValue("@date", local.ToString("yyyy-MM-dd"));
+
+                if (!reader.IsDBNull(0))
+                    query.Parameters.AddWithValue("@airTempAvg", reader.GetDouble(0));
+                else query.Parameters.AddWithValue("@airTempAvg", DBNull.Value);
+
+                if (!reader.IsDBNull(1))
+                    query.Parameters.AddWithValue("@airTempMin", reader.GetDouble(1));
+                else query.Parameters.AddWithValue("@airTempMin", DBNull.Value);
+
+                if (!reader.IsDBNull(2))
+                    query.Parameters.AddWithValue("@airTempMax", reader.GetDouble(2));
+                else query.Parameters.AddWithValue("@airTempMax", DBNull.Value);
+
+                if (!reader.IsDBNull(3))
+                    query.Parameters.AddWithValue("@relHumAvg", reader.GetDouble(3));
+                else query.Parameters.AddWithValue("@relHumAvg", DBNull.Value);
+
+                if (!reader.IsDBNull(4))
+                    query.Parameters.AddWithValue("@relHumMin", reader.GetDouble(4));
+                else query.Parameters.AddWithValue("@relHumMin", DBNull.Value);
+
+                if (!reader.IsDBNull(5))
+                    query.Parameters.AddWithValue("@relHumMax", reader.GetDouble(5));
+                else query.Parameters.AddWithValue("@relHumMax", DBNull.Value);
+
+                if (!reader.IsDBNull(6))
+                    query.Parameters.AddWithValue("@windSpeedAvg", reader.GetDouble(6));
+                else query.Parameters.AddWithValue("@windSpeedAvg", DBNull.Value);
+
+                if (!reader.IsDBNull(7))
+                    query.Parameters.AddWithValue("@windSpeedMin", reader.GetDouble(7));
+                else query.Parameters.AddWithValue("@windSpeedMin", DBNull.Value);
+
+                if (!reader.IsDBNull(8))
+                    query.Parameters.AddWithValue("@windSpeedMax", reader.GetDouble(8));
+                else query.Parameters.AddWithValue("@windSpeedMax", DBNull.Value);
+
+                if (!reader.IsDBNull(9))
+                    query.Parameters.AddWithValue("@windGustAvg", reader.GetDouble(9));
+                else query.Parameters.AddWithValue("@windGustAvg", DBNull.Value);
+
+                if (!reader.IsDBNull(10))
+                    query.Parameters.AddWithValue("@windGustMin", reader.GetDouble(10));
+                else query.Parameters.AddWithValue("@windGustMin", DBNull.Value);
+
+                if (!reader.IsDBNull(11))
+                    query.Parameters.AddWithValue("@windGustMax", reader.GetDouble(11));
+                else query.Parameters.AddWithValue("@windGustMax", DBNull.Value);
+
+                if (!reader.IsDBNull(12))
+                    query.Parameters.AddWithValue("@rainfallTtl", reader.GetDouble(12));
+                else query.Parameters.AddWithValue("@rainfallTtl", DBNull.Value);
+
+                if (!reader.IsDBNull(13))
+                    query.Parameters.AddWithValue("@sunDurTtl", reader.GetDouble(13));
+                else query.Parameters.AddWithValue("@sunDurTtl", DBNull.Value);
+
+                if (!reader.IsDBNull(14))
+                    query.Parameters.AddWithValue("@mslPresAvg", reader.GetDouble(14));
+                else query.Parameters.AddWithValue("@mslPresAvg", DBNull.Value);
+
+                if (!reader.IsDBNull(15))
+                    query.Parameters.AddWithValue("@mslPresMin", reader.GetDouble(15));
+                else query.Parameters.AddWithValue("@mslPresMin", DBNull.Value);
+
+                if (!reader.IsDBNull(16))
+                    query.Parameters.AddWithValue("@mslPresMax", reader.GetDouble(16));
+                else query.Parameters.AddWithValue("@mslPresMax", DBNull.Value);
+
+                query.ExecuteNonQuery();
+            }
         }
     }
 }

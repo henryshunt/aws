@@ -35,12 +35,21 @@ namespace Aws.Routines
             using (SqliteConnection connection = Connect(database))
             {
                 connection.Open();
-                string sql = "CREATE TABLE reports (time TEXT PRIMARY KEY, " +
-                    "airTemp REAL, relHum REAL, dewPoint REAL, windSpeed REAL, " +
-                    "windDir INTEGER, windGust REAL, rainfall REAL, staPres REAL, " +
-                    "mslPres REAL)";
 
+                string sql = "CREATE TABLE reports (" +
+                    "time TEXT PRIMARY KEY NOT NULL, airTemp REAL, relHum REAL, dewPoint REAL, " +
+                    "windSpeed REAL, windDir INTEGER, windGust REAL, rainfall REAL, sunDur INTEGER, " +
+                    "staPres REAL, mslPres REAL)";
                 SqliteCommand query = new SqliteCommand(sql, connection);
+                query.ExecuteNonQuery();
+
+                sql = "CREATE TABLE dayStats(" +
+                    "date TEXT PRIMARY KEY NOT NULL, airTempAvg REAL, airTempMin REAL, airTempMax REAL, " +
+                    "relHumAvg REAL, relHumMin REAL, relHumMax REAL, windSpeedAvg REAL, windSpeedMin REAL, " +
+                    "windSpeedMax REAL, windDirAvg INTEGER, windGustAvg REAL, windGustMin REAL, " +
+                    "windGustMax REAL, rainfallTtl REAL, sunDurTtl INTEGER, mslPresAvg REAL, " +
+                    "mslPresMin REAL, mslPresMax REAL)";
+                query = new SqliteCommand(sql, connection);
                 query.ExecuteNonQuery();
             }
         }
@@ -52,11 +61,9 @@ namespace Aws.Routines
                 connection.Open();
                 string sql = "INSERT INTO reports VALUES (@Time, @AirTemperature, " +
                     "@RelativeHumidity, @DewPoint, @WindSpeed, @WindDirection, @WindGust, " +
-                    "@Rainfall, @StationPressure, @MslPressure)";
+                    "@Rainfall, @SunshineDuration, @StationPressure, @MslPressure)";
 
                 SqliteCommand query = new SqliteCommand(sql, connection);
-                query.CommandText = sql;
-                query.Connection = connection;
 
                 query.Parameters.AddWithValue(
                     "@Time", report.Time.ToString("yyyy-MM-dd HH:mm:ss"));
@@ -89,6 +96,10 @@ namespace Aws.Routines
                     query.Parameters.AddWithValue("@Rainfall", DBNull.Value);
                 else query.Parameters.AddWithValue("@Rainfall", report.Rainfall);
 
+                if (report.SunshineDuration == null)
+                    query.Parameters.AddWithValue("@SunshineDuration", DBNull.Value);
+                else query.Parameters.AddWithValue("@SunshineDuration", report.SunshineDuration);
+
                 if (report.BarometricPressure == null)
                     query.Parameters.AddWithValue("@StationPressure", DBNull.Value);
                 else query.Parameters.AddWithValue("@StationPressure", report.BarometricPressure);
@@ -97,7 +108,7 @@ namespace Aws.Routines
                     query.Parameters.AddWithValue("@MslPressure", DBNull.Value);
                 else query.Parameters.AddWithValue("@MslPressure", report.MslPressure);
 
-                query.ExecuteReader();
+                query.ExecuteNonQuery();
             }
         }
     }
