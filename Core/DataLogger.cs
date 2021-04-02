@@ -358,12 +358,20 @@ namespace Aws.Core
             }
 
             if (store.BarometricPressure.Count > 0)
-                report.BarometricPressure = Math.Round(store.BarometricPressure.Average());
+                report.BarometricPressure = Math.Round(store.BarometricPressure.Average(), 1);
 
             if (report.AirTemperature != null && report.RelativeHumidity != null)
             {
                 report.DewPoint = Math.Round(Helpers.CalculateDewPoint(
                     (double)report.AirTemperature, (double)report.RelativeHumidity), 1);
+            }
+
+            if (report.BarometricPressure != null && report.AirTemperature != null)
+            {
+                double mslp = Helpers.CalculateMslp((double)report.BarometricPressure,
+                    (double)report.AirTemperature, (double)config.Gps.altitude);
+
+                report.MslPressure = Math.Round(mslp, 1);
             }
 
             Console.WriteLine(report.ToString());

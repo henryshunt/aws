@@ -9,6 +9,7 @@ namespace Aws.Routines
         public static string LOGGING_FILE = "/var/logs/aws.log";
         public static string CONFIG_FILE = "/etc/aws.json";
         public static string DATA_DIRECTORY = "/var/aws/";
+        public static string GPS_FILE = DATA_DIRECTORY + "gps.json";
 
         public enum ExitAction
         {
@@ -55,6 +56,15 @@ namespace Aws.Routines
             double e = 0.4343 * Math.Log(humidity / 100) + ea / (256.1 + temperature);
             double sr = Math.Sqrt(Math.Pow(8.0813 - e, 2) - (1.842 * e));
             return 278.04 * (8.0813 - e - sr);
+        }
+
+        // Formula from https://keisan.casio.com/exec/system/1224575267
+        public static double CalculateMslp(double stationPres, double airTemp, double elevation)
+        {
+            double x = (0.0065 * elevation)
+                / (airTemp + (0.0065 * elevation) + 273.15);
+
+            return stationPres * Math.Pow(1 - x, -5.257);
         }
     }
 }

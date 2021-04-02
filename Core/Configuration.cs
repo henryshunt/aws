@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Aws.Routines;
+using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 
@@ -13,6 +14,7 @@ namespace Aws.Core
         public int clockTickPin { get; private set; }
         public dynamic sensors { get; private set; }
         public TimeZoneInfo timeZone { get; private set; }
+        public dynamic Gps { get; private set; }
 
         public Configuration(string filePath)
         {
@@ -36,6 +38,7 @@ namespace Aws.Core
 
             timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
 
+            Gps = JObject.Parse(File.ReadAllText(Helpers.GPS_FILE));
             return true;
             //}
             //else return false;
