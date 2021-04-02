@@ -369,7 +369,7 @@ namespace Aws.Core
             if (report.BarometricPressure != null && report.AirTemperature != null)
             {
                 double mslp = Helpers.CalculateMslp((double)report.BarometricPressure,
-                    (double)report.AirTemperature, (double)config.Gps.altitude);
+                    (double)report.AirTemperature, (double)config.gps.altitude);
 
                 report.MslPressure = Math.Round(mslp, 1);
             }

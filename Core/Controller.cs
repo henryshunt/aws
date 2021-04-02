@@ -15,7 +15,7 @@ namespace Aws.Core
         /// <summary>
         /// The AWS' configuration data.
         /// </summary>
-        private Configuration config;
+        private Configuration configuration = new Configuration();
 
         /// <summary>
         /// The clock used for timekeeping and operation triggering.
@@ -36,43 +36,25 @@ namespace Aws.Core
         /// Effectively the start button for the AWS software. Initialises everything and begins
         /// AWS operation.
         /// </summary>
-        public void Startup()
+        public async void Startup()
         {
             Helpers.LogEvent(null, nameof(Controller), "Startup");
 
-            // Load configuration
-            try
-            {
-                config = new Configuration(Helpers.CONFIG_FILE);
-
-                if (!config.Load())
-                {
-                    Helpers.LogEvent(null, nameof(Controller),
-                        "Failed to load configuration file (invalid data)");
-                    return;
-                }
-
-                Helpers.LogEvent(null, nameof(Controller), "Loaded configuration file");
-            }
-            catch
-            {
-                Helpers.LogEvent(null, nameof(Controller), "Failed to load configuration file");
+            if (!await configuration.LoadAsync(Helpers.CONFIG_FILE))
                 return;
-            }
 
-            // Initialise GPIO
             gpio = new GpioController(PinNumberingScheme.Logical);
-            gpio.OpenPin(config.dataLedPin, PinMode.Output);
-            gpio.Write(config.dataLedPin, PinValue.Low);
-            gpio.OpenPin(config.errorLedPin, PinMode.Output);
-            gpio.Write(config.errorLedPin, PinValue.Low);
+            gpio.OpenPin(configuration.dataLedPin, PinMode.Output);
+            gpio.Write(configuration.dataLedPin, PinValue.Low);
+            gpio.OpenPin(configuration.errorLedPin, PinMode.Output);
+            gpio.Write(configuration.errorLedPin, PinValue.Low);
 
             Thread.Sleep(1000);
 
-            // Connect to clock
+
             try
             {
-                clock = new Clock(config.clockTickPin, gpio);
+                clock = new Clock(configuration.clockTickPin, gpio);
                 clock.Ticked += Clock_Ticked;
                 clock.Open();
 
@@ -87,34 +69,55 @@ namespace Aws.Core
             }
             catch
             {
-                gpio.Write(config.errorLedPin, PinValue.High);
+                gpio.Write(configuration.errorLedPin, PinValue.High);
                 Helpers.LogEvent(null, nameof(Controller), "Failed to open connection to clock");
                 return;
             }
 
             if (!StartupFileSystem())
+            {
+                gpio.Write(configuration.errorLedPin, PinValue.High);
                 return;
+            }
 
-            // Connect to sensors
             try
             {
-                dataLogger = new DataLogger(config, gpio);
+                if (!File.Exists(Helpers.GPS_FILE))
+                {
+                    // Do GPS acquisition
+                }
+            }
+            catch
+            {
+                Helpers.LogEvent(null, nameof(Controller), "Failed to acquire GPS data");
+                gpio.Write(configuration.errorLedPin, PinValue.High);
+                return;
+            }
+
+            if (!configuration.LoadGps(Helpers.GPS_FILE))
+            {
+                gpio.Write(configuration.errorLedPin, PinValue.High);
+                return;
+            }
+
+
+            try
+            {
+                dataLogger = new DataLogger(configuration, gpio);
                 dataLogger.Open();
             }
             catch (DataLoggerException)
             {
-                gpio.Write(config.errorLedPin, PinValue.High);
+                gpio.Write(configuration.errorLedPin, PinValue.High);
                 return;
             }
 
-            // Indicate successful startup
-            gpio.Write(config.dataLedPin, PinValue.High);
-            gpio.Write(config.errorLedPin, PinValue.High);
+            gpio.Write(configuration.dataLedPin, PinValue.High);
+            gpio.Write(configuration.errorLedPin, PinValue.High);
             Thread.Sleep(2500);
-            gpio.Write(config.dataLedPin, PinValue.Low);
-            gpio.Write(config.errorLedPin, PinValue.Low);
+            gpio.Write(configuration.dataLedPin, PinValue.Low);
+            gpio.Write(configuration.errorLedPin, PinValue.Low);
 
-            // Start the clock
             try
             {
                 clock.Start();
@@ -122,7 +125,7 @@ namespace Aws.Core
             }
             catch
             {
-                gpio.Write(config.errorLedPin, PinValue.High);
+                gpio.Write(configuration.errorLedPin, PinValue.High);
                 Helpers.LogEvent(clock.DateTime, nameof(Controller), "Failed to start clock");
                 return;
             }
@@ -149,7 +152,6 @@ namespace Aws.Core
             }
             catch
             {
-                gpio.Write(config.errorLedPin, PinValue.High);
                 Helpers.LogEvent(clock.DateTime, nameof(Controller), "Failed to create data directory");
                 return false;
             }
@@ -165,7 +167,6 @@ namespace Aws.Core
             }
             catch
             {
-                gpio.Write(config.errorLedPin, PinValue.High);
                 Helpers.LogEvent(clock.DateTime, nameof(Controller), "Failed to create data database");
                 return false;
             }
@@ -182,7 +183,6 @@ namespace Aws.Core
             //}
             //catch
             //{
-            //    gpio.Write(config.errorLedPin, PinValue.High);
             //    Helpers.LogEvent(clock.DateTime, "Coordinator", "Failed to create transmit database");
             //    return false;
             //}
@@ -199,7 +199,7 @@ namespace Aws.Core
             catch (DataLoggerException ex)
             when (ex.Message == "Failed to start sampling")
             {
-                gpio.Write(config.errorLedPin, PinValue.High);
+                gpio.Write(configuration.errorLedPin, PinValue.High);
                 clock.Stop();
             }
         }

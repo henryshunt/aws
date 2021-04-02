@@ -1,110 +1,117 @@
 ﻿using Aws.Routines;
 using Newtonsoft.Json.Linq;
+using NJsonSchema;
+using NJsonSchema.Validation;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Aws.Core
 {
-    internal class Configuration
+    public class Configuration
     {
-        public string FilePath { get; private set; }
-
         public int dataLedPin { get; private set; }
         public int errorLedPin { get; private set; }
         public int clockTickPin { get; private set; }
-        public dynamic sensors { get; private set; }
+        public dynamic gps { get; private set; } = null;
         public TimeZoneInfo timeZone { get; private set; }
-        public dynamic Gps { get; private set; }
+        public dynamic sensors { get; private set; } = null;
 
-        public Configuration(string filePath)
-        {
-            FilePath = filePath;
-        }
+        /// <summary>
+        /// Initialises a new instance of the <see cref="Configuration"/> class.
+        /// </summary>
+        public Configuration() { }
 
-
-        public bool Load()
-        {
-            dynamic jsonObject = JObject.Parse(File.ReadAllText(FilePath));
-
-            //if (Validate(jsonObject))
-            //{
-            dataLedPin = jsonObject.dataLedPin;
-            errorLedPin = jsonObject.errorLedPin;
-            clockTickPin = jsonObject.clockTickPin;
-            sensors = jsonObject.sensors;
-
-            if (sensors.satellite.i8pa.enabled == true || sensors.satellite.iev2.enabled == true)
-                sensors.satellite.enabled = true;
-
-            timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
-
-            Gps = JObject.Parse(File.ReadAllText(Helpers.GPS_FILE));
-            return true;
-            //}
-            //else return false;
-        }
-
-        private bool Validate(dynamic jsonObject)
+        /// <summary>
+        /// Loads configuration data from a JSON file.
+        /// </summary>
+        /// <param name="filePath">
+        /// The path to the file containing the JSON configuration data to load.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if the configuration data was successfully loaded, otherwise
+        /// <see langword="false"/>.
+        /// </returns>
+        public async Task<bool> LoadAsync(string filePath)
         {
             try
             {
-                if ((jsonObject.dataLedPin as JValue).Value.GetType() != typeof(long))
-                    return false;
-                if ((jsonObject.errorLedPin as JValue).Value.GetType() != typeof(long))
-                    return false;
-                if ((jsonObject.clockTickPin as JValue).Value.GetType() != typeof(long))
+                string json = File.ReadAllText(filePath);
+
+                if (!await ValidateAsync(json))
                     return false;
 
-                if ((jsonObject.sensors.airTemperature.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if ((jsonObject.sensors.relativeHumidity.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if ((jsonObject.sensors.barometricPressure.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
+                dynamic jsonObject = JObject.Parse(json);
 
-                if ((jsonObject.sensors.satellite.windSpeed.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if (jsonObject.sensors.satellite.windSpeed.enabled == true &&
-                    (jsonObject.sensors.satellite.windSpeed.pin as JValue).Value.GetType() != typeof(long))
-                {
-                    return false;
-                }
+                dataLedPin = jsonObject.dataLedPin;
+                errorLedPin = jsonObject.errorLedPin;
+                clockTickPin = jsonObject.clockTickPin;
+                sensors = jsonObject.sensors;
 
-                if ((jsonObject.sensors.satellite.windDir.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if (jsonObject.sensors.satellite.windDir.enabled == true &&
-                    (jsonObject.sensors.satellite.windDir.pin as JValue).Value.GetType() != typeof(long))
-                {
-                    return false;
-                }
+                if (sensors.satellite.i8pa.enabled == true || sensors.satellite.iev2.enabled == true)
+                    sensors.satellite.enabled = true;
 
-                if ((jsonObject.sensors.rainfall.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if (jsonObject.sensors.rainfall.enabled == true &&
-                    (jsonObject.sensors.rainfall.pin as JValue).Value.GetType() != typeof(long))
-                {
-                    return false;
-                }
-
-                if ((jsonObject.sensors.sunshineDuration.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if (jsonObject.sensors.sunshineDuration.enabled == true &&
-                    (jsonObject.sensors.sunshineDuration.pin as JValue).Value.GetType() != typeof(long))
-                {
-                    return false;
-                }
-
-                if ((jsonObject.sensors.soilTemperature10.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if ((jsonObject.sensors.soilTemperature30.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-                if ((jsonObject.sensors.soilTemperature100.enabled as JValue).Value.GetType() != typeof(bool))
-                    return false;
-
+                Helpers.LogEvent(null, nameof(Configuration), "Loaded configuration data");
                 return true;
             }
-            catch (NullReferenceException)
+            catch (Exception ex)
             {
+                Helpers.LogEvent(null, nameof(Configuration), ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Determines whether a JSON string matches the configuration validation schema.
+        /// </summary>
+        /// <param name="json">
+        /// The JSON string to check.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if the JSON string matches the configuration validation schema,
+        /// otherwise <see langword="false"/>.
+        /// </returns>
+        private async Task<bool> ValidateAsync(string json)
+        {
+            JsonSchema schema =
+                await JsonSchema.FromFileAsync("Resources/ConfigurationSchema.json");
+
+            ICollection<ValidationError> errors = schema.Validate(json);
+
+            if (errors.Count > 0)
+            {
+                Helpers.LogEvent(null, nameof(Configuration),
+                    "Invalid: " + errors.ElementAt(0).ToString());
+            }
+
+            return errors.Count == 0;
+        }
+
+        /// <summary>
+        /// Loads GPS data from a JSON file.
+        /// </summary>
+        /// <param name="filePath">
+        /// The path to the file containing the JSON GPS data to load.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if the GPS data was successfully loaded, otherwise
+        /// <see langword="false"/>.
+        /// </returns>
+        public bool LoadGps(string filePath)
+        {
+            try
+            {
+                gps = JObject.Parse(File.ReadAllText(Helpers.GPS_FILE));
+                timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
+
+                Helpers.LogEvent(null, nameof(Configuration), "Loaded GPS data");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogEvent(null, nameof(Configuration), ex.Message);
                 return false;
             }
         }
