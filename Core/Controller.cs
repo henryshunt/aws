@@ -15,7 +15,7 @@ namespace Aws.Core
         /// <summary>
         /// The AWS' configuration data.
         /// </summary>
-        private Configuration configuration = new Configuration();
+        private Configuration config = new Configuration();
 
         /// <summary>
         /// The clock used for timekeeping and operation triggering.
@@ -38,23 +38,39 @@ namespace Aws.Core
         /// </summary>
         public async void Startup()
         {
-            Helpers.LogEvent(null, nameof(Controller), "Startup");
+            Helpers.LogEvent(nameof(Controller), "Startup");
 
-            if (!await configuration.LoadAsync(Helpers.CONFIG_FILE))
+            // Load configuration
+            try
+            {
+                if (!await config.LoadAsync(Helpers.CONFIG_FILE))
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Helpers.LogEvent(nameof(Configuration), "Configuration invalid");
+                    return;
+                }
+                else Helpers.LogEvent(nameof(Configuration), "Loaded configuration");
+            }
+            catch
+            {
+                gpio.Write(config.errorLedPin, PinValue.High);
+                Helpers.LogEvent(nameof(Configuration), "Failed to load configuration");
                 return;
+            }
 
+            // Initialise GPIO
             gpio = new GpioController(PinNumberingScheme.Logical);
-            gpio.OpenPin(configuration.dataLedPin, PinMode.Output);
-            gpio.Write(configuration.dataLedPin, PinValue.Low);
-            gpio.OpenPin(configuration.errorLedPin, PinMode.Output);
-            gpio.Write(configuration.errorLedPin, PinValue.Low);
+            gpio.OpenPin(config.dataLedPin, PinMode.Output);
+            gpio.Write(config.dataLedPin, PinValue.Low);
+            gpio.OpenPin(config.errorLedPin, PinMode.Output);
+            gpio.Write(config.errorLedPin, PinValue.Low);
 
             Thread.Sleep(1000);
 
-
+            // Open clock
             try
             {
-                clock = new Clock(configuration.clockTickPin, gpio);
+                clock = new Clock(config.clockTickPin, gpio);
                 clock.Ticked += Clock_Ticked;
                 clock.Open();
 
@@ -65,68 +81,78 @@ namespace Aws.Core
                 //    return;
                 //}
 
-                Helpers.LogEvent(clock.DateTime, nameof(Controller), "Opened connection to clock");
+                Helpers.LogEvent(nameof(Controller), "Opened connection to clock");
+                Helpers.LogEvent(nameof(Controller), "Current clock time is " +
+                    clock.DateTime.ToString("yyyy-MM-dd HH:mm:ss"));
             }
             catch
             {
-                gpio.Write(configuration.errorLedPin, PinValue.High);
-                Helpers.LogEvent(null, nameof(Controller), "Failed to open connection to clock");
+                gpio.Write(config.errorLedPin, PinValue.High);
+                Helpers.LogEvent(nameof(Controller), "Failed to open connection to clock");
                 return;
             }
 
+            // Filesystem related work
             if (!StartupFileSystem())
-            {
-                gpio.Write(configuration.errorLedPin, PinValue.High);
                 return;
-            }
 
+
+            // Acquire GPS data
+            //try
+            //{
+            //    if (!File.Exists(Helpers.GPS_FILE))
+            //    {
+            //        // Do GPS acquisition
+            //    }
+            //}
+            //catch
+            //{
+            //    gpio.Write(config.errorLedPin, PinValue.High);
+            //    Helpers.LogEvent(nameof(Controller), "Failed to acquire GPS data");
+            //    return;
+            //}
+
+            // Load GPS data
             try
             {
-                if (!File.Exists(Helpers.GPS_FILE))
-                {
-                    // Do GPS acquisition
-                }
+                config.LoadGps(Helpers.GPS_FILE);
+                Helpers.LogEvent(nameof(Configuration), "Loaded GPS data");
             }
             catch
             {
-                Helpers.LogEvent(null, nameof(Controller), "Failed to acquire GPS data");
-                gpio.Write(configuration.errorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
+                Helpers.LogEvent(nameof(Configuration), "Failed to load GPS data");
                 return;
             }
 
-            if (!configuration.LoadGps(Helpers.GPS_FILE))
-            {
-                gpio.Write(configuration.errorLedPin, PinValue.High);
-                return;
-            }
-
-
+            // Open data logger
             try
             {
-                dataLogger = new DataLogger(configuration, gpio);
+                dataLogger = new DataLogger(config, gpio);
                 dataLogger.Open();
             }
             catch (DataLoggerException)
             {
-                gpio.Write(configuration.errorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
                 return;
             }
 
-            gpio.Write(configuration.dataLedPin, PinValue.High);
-            gpio.Write(configuration.errorLedPin, PinValue.High);
+            gpio.Write(config.dataLedPin, PinValue.High);
+            gpio.Write(config.errorLedPin, PinValue.High);
             Thread.Sleep(2500);
-            gpio.Write(configuration.dataLedPin, PinValue.Low);
-            gpio.Write(configuration.errorLedPin, PinValue.Low);
+            gpio.Write(config.dataLedPin, PinValue.Low);
+            gpio.Write(config.errorLedPin, PinValue.Low);
 
+            // Start clock
             try
             {
                 clock.Start();
-                Helpers.LogEvent(clock.DateTime, nameof(Controller), "Started clock");
+                Helpers.LogEvent(nameof(Controller), "Started clock");
             }
             catch
             {
-                gpio.Write(configuration.errorLedPin, PinValue.High);
-                Helpers.LogEvent(clock.DateTime, nameof(Controller), "Failed to start clock");
+                gpio.Write(config.errorLedPin, PinValue.High);
+                Helpers.LogEvent(nameof(Controller), "Failed to start clock");
                 return;
             }
 
@@ -147,12 +173,13 @@ namespace Aws.Core
                 if (!Directory.Exists(Helpers.DATA_DIRECTORY))
                 {
                     Directory.CreateDirectory(Helpers.DATA_DIRECTORY);
-                    Helpers.LogEvent(clock.DateTime, nameof(Controller), "Created data directory");
+                    Helpers.LogEvent(nameof(Controller), "Created data directory");
                 }
             }
             catch
             {
-                Helpers.LogEvent(clock.DateTime, nameof(Controller), "Failed to create data directory");
+                gpio.Write(config.errorLedPin, PinValue.High);
+                Helpers.LogEvent(nameof(Controller), "Failed to create data directory");
                 return false;
             }
 
@@ -167,7 +194,8 @@ namespace Aws.Core
             }
             catch
             {
-                Helpers.LogEvent(clock.DateTime, nameof(Controller), "Failed to create data database");
+                gpio.Write(config.errorLedPin, PinValue.High);
+                Helpers.LogEvent(nameof(Controller), "Failed to create data database");
                 return false;
             }
 
@@ -183,7 +211,8 @@ namespace Aws.Core
             //}
             //catch
             //{
-            //    Helpers.LogEvent(clock.DateTime, "Coordinator", "Failed to create transmit database");
+            //gpio.Write(config.errorLedPin, PinValue.High);
+            //    Helpers.LogEvent("Coordinator", "Failed to create transmit database");
             //    return false;
             //}
 
@@ -199,7 +228,7 @@ namespace Aws.Core
             catch (DataLoggerException ex)
             when (ex.Message == "Failed to start sampling")
             {
-                gpio.Write(configuration.errorLedPin, PinValue.High);
+                gpio.Write(config.errorLedPin, PinValue.High);
                 clock.Stop();
             }
         }

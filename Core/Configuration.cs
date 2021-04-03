@@ -36,31 +36,22 @@ namespace Aws.Core
         /// </returns>
         public async Task<bool> LoadAsync(string filePath)
         {
-            try
-            {
-                string json = File.ReadAllText(filePath);
+            string json = File.ReadAllText(filePath);
 
-                if (!await ValidateAsync(json))
-                    return false;
-
-                dynamic jsonObject = JObject.Parse(json);
-
-                dataLedPin = jsonObject.dataLedPin;
-                errorLedPin = jsonObject.errorLedPin;
-                clockTickPin = jsonObject.clockTickPin;
-                sensors = jsonObject.sensors;
-
-                if (sensors.satellite.i8pa.enabled == true || sensors.satellite.iev2.enabled == true)
-                    sensors.satellite.enabled = true;
-
-                Helpers.LogEvent(null, nameof(Configuration), "Loaded configuration data");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Helpers.LogEvent(null, nameof(Configuration), ex.Message);
+            if (!await ValidateAsync(json))
                 return false;
-            }
+
+            dynamic jsonObject = JObject.Parse(json);
+
+            dataLedPin = jsonObject.dataLedPin;
+            errorLedPin = jsonObject.errorLedPin;
+            clockTickPin = jsonObject.clockTickPin;
+            sensors = jsonObject.sensors;
+
+            if ((bool)sensors.satellite.i8pa.enabled || (bool)sensors.satellite.iev2.enabled)
+                sensors.satellite.enabled = true;
+
+            return true;
         }
 
         /// <summary>
@@ -95,25 +86,10 @@ namespace Aws.Core
         /// <param name="filePath">
         /// The path to the file containing the JSON GPS data to load.
         /// </param>
-        /// <returns>
-        /// <see langword="true"/> if the GPS data was successfully loaded, otherwise
-        /// <see langword="false"/>.
-        /// </returns>
-        public bool LoadGps(string filePath)
+        public void LoadGps(string filePath)
         {
-            try
-            {
-                gps = JObject.Parse(File.ReadAllText(Helpers.GPS_FILE));
-                timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
-
-                Helpers.LogEvent(null, nameof(Configuration), "Loaded GPS data");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Helpers.LogEvent(null, nameof(Configuration), ex.Message);
-                return false;
-            }
+            gps = JObject.Parse(File.ReadAllText(filePath));
+            timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
         }
     }
 }

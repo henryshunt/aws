@@ -31,6 +31,12 @@ namespace Aws.Routines
             Console.WriteLine(line);
         }
 
+        public static void LogEvent(string source, string message)
+        {
+            string line = string.Format("{0}: {1}", source, message);
+            Console.WriteLine(line);
+        }
+
         public static double CalculateWindDirection(List<Vector> vectors)
         {
             List<double> east = new List<double>();
