@@ -3,6 +3,7 @@ using System;
 using System.Device.Gpio;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Aws.Core
 {
@@ -43,18 +44,21 @@ namespace Aws.Core
             // Load configuration
             try
             {
-                if (!await config.LoadAsync(Helpers.CONFIG_FILE))
+                string error = await config.LoadAsync();
+
+                if (error == null)
+                    Helpers.LogEvent(nameof(Configuration), "Loaded configuration data");
+                else
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent(nameof(Configuration), "Configuration invalid");
+                    Helpers.LogEvent(nameof(Configuration), "Invalid: " + error);
                     return;
                 }
-                else Helpers.LogEvent(nameof(Configuration), "Loaded configuration");
             }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent(nameof(Configuration), "Failed to load configuration");
+                Helpers.LogEvent(nameof(Configuration), "Failed to load configuration data");
                 return;
             }
 
@@ -95,35 +99,6 @@ namespace Aws.Core
             // Filesystem related work
             if (!StartupFileSystem())
                 return;
-
-
-            // Acquire GPS data
-            //try
-            //{
-            //    if (!File.Exists(Helpers.GPS_FILE))
-            //    {
-            //        // Do GPS acquisition
-            //    }
-            //}
-            //catch
-            //{
-            //    gpio.Write(config.errorLedPin, PinValue.High);
-            //    Helpers.LogEvent(nameof(Controller), "Failed to acquire GPS data");
-            //    return;
-            //}
-
-            // Load GPS data
-            try
-            {
-                config.LoadGps(Helpers.GPS_FILE);
-                Helpers.LogEvent(nameof(Configuration), "Loaded GPS data");
-            }
-            catch
-            {
-                gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent(nameof(Configuration), "Failed to load GPS data");
-                return;
-            }
 
             // Open data logger
             try

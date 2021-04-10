@@ -7,6 +7,18 @@
         "errorLedPin": { "type": "integer", "minimum": 0 },
         "clockTickPin": { "type": "integer", "minimum": 0 },
 
+        "position": {
+            "type": "object",
+
+            "properties": {
+                "latitude": { "type": "number" },
+                "longitude": { "type": "number" },
+                "elevation": { "type": "number" }
+            },
+
+            "required": ["latitude", "longitude", "elevation"]
+        },
+
         "sensors": {
             "type": "object",
 
