@@ -37,6 +37,11 @@ namespace Aws.Routines
             Console.WriteLine(line);
         }
 
+        public static void LogException(Exception exception)
+        {
+            Console.WriteLine(exception.ToString());
+        }
+
         public static double CalculateWindDirection(List<Vector> vectors)
         {
             List<double> east = new List<double>();

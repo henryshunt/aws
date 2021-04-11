@@ -37,28 +37,15 @@ namespace Aws.Core
         /// Effectively the start button for the AWS software. Initialises everything and begins
         /// AWS operation.
         /// </summary>
-        public async void Startup()
+        public async Task Startup()
         {
-            Helpers.LogEvent(nameof(Controller), "Startup");
+            Helpers.LogEvent(nameof(Controller), "Startup ------------");
 
             // Load configuration
-            try
+            try { await config.LoadAsync(); }
+            catch (Exception ex)
             {
-                string error = await config.LoadAsync();
-
-                if (error == null)
-                    Helpers.LogEvent(nameof(Configuration), "Loaded configuration data");
-                else
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent(nameof(Configuration), "Invalid: " + error);
-                    return;
-                }
-            }
-            catch
-            {
-                gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent(nameof(Configuration), "Failed to load configuration data");
+                Helpers.LogException(ex);
                 return;
             }
 

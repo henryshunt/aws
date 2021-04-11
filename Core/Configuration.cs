@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace Aws.Core
 {
     /// <summary>
-    /// Represents the configuration data for the system.
+    /// Represents the configuration data for the AWS system.
     /// </summary>
     internal class Configuration
     {
@@ -28,24 +28,25 @@ namespace Aws.Core
         public Configuration() { }
 
         /// <summary>
-        /// Loads and validates configuration data from a JSON file located at <see cref="Helpers.CONFIG_FILE"/>.
+        /// Loads configuration data from a JSON file located at <see cref="Helpers.CONFIG_FILE"/>.
         /// </summary>
-        /// <returns>
-        /// <see langword="null"/> on success. If the configuration data does not conform to the required format then a
-        /// <see cref="string"/> describing the violation is returned.
-        /// </returns>
-        public async Task<string> LoadAsync()
+        /// <exception cref="ConfigurationSchemaException">
+        /// Thrown if the configuration data does not conform to the required schema.
+        /// </exception>
+        public async Task LoadAsync()
         {
             string json = File.ReadAllText(Helpers.CONFIG_FILE);
 
-            // Check validity of the JSON
             JsonSchema schema =
                 await JsonSchema.FromFileAsync("Resources/ConfigurationSchema.json");
             ICollection<ValidationError> errors = schema.Validate(json);
 
             if (errors.Count > 0)
-                return errors.ElementAt(0).ToString();
-
+            {
+                throw new ConfigurationSchemaException(
+                    "Configuration data does not conform to the required schema: " +
+                    errors.ElementAt(0).ToString());
+            }
 
             dynamic jsonObject = JObject.Parse(json);
 
@@ -58,8 +59,6 @@ namespace Aws.Core
 
             if ((bool)sensors.satellite.i8pa.enabled || (bool)sensors.satellite.iev2.enabled)
                 sensors.satellite.enabled = true;
-
-            return null;
         }
     }
 }

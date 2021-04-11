@@ -114,5 +114,11 @@
         }
     },
 
-    "required": ["dataLedPin", "errorLedPin", "clockTickPin", "sensors"]
+    "required": [
+        "dataLedPin",
+        "errorLedPin",
+        "clockTickPin",
+        "position",
+        "sensors"
+    ]
 }
