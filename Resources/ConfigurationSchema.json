@@ -111,6 +111,16 @@
             },
 
             "required": ["mcp9808", "bme680", "satellite", "rr111"]
+        },
+    
+        "transmitter": {
+            "type": "object",
+
+            "properties": {
+                "transmit": { "type": "boolean" }
+            },
+
+            "required": ["transmit"]
         }
     },
 

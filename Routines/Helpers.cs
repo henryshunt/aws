@@ -19,22 +19,9 @@ namespace Aws.Routines
             Restart    // Terminates the software and restarts the station computer
         }
 
-        public static void LogEvent(DateTime? time, string source, string message)
+        public static void LogEvent(string message)
         {
-            string line = "";
-
-            if (time != null)
-                line += ((DateTime)time).ToString("[yyyy-MM-dd HH:mm:ss]");
-            else line += "[      NO TIME      ]";
-
-            line += string.Format(" {0}: {1}", source, message);
-            Console.WriteLine(line);
-        }
-
-        public static void LogEvent(string source, string message)
-        {
-            string line = string.Format("{0}: {1}", source, message);
-            Console.WriteLine(line);
+            Console.WriteLine(message);
         }
 
         public static void LogException(Exception exception)
@@ -42,8 +29,11 @@ namespace Aws.Routines
             Console.WriteLine(exception.ToString());
         }
 
-        public static double CalculateWindDirection(List<Vector> vectors)
+        public static double VectorAverage(List<Vector> vectors)
         {
+            if (vectors.Count == 0)
+                throw new ArgumentException(nameof(vectors) + " cannot be empty");
+
             List<double> east = new List<double>();
             List<double> north = new List<double>();
 

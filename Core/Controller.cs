@@ -39,9 +39,8 @@ namespace Aws.Core
         /// </summary>
         public async Task Startup()
         {
-            Helpers.LogEvent(nameof(Controller), "Startup ------------");
+            Helpers.LogEvent("Startup ------------");
 
-            // Load configuration
             try { await config.LoadAsync(); }
             catch (Exception ex)
             {
@@ -49,16 +48,12 @@ namespace Aws.Core
                 return;
             }
 
-            // Initialise GPIO
             gpio = new GpioController(PinNumberingScheme.Logical);
             gpio.OpenPin(config.dataLedPin, PinMode.Output);
             gpio.Write(config.dataLedPin, PinValue.Low);
             gpio.OpenPin(config.errorLedPin, PinMode.Output);
             gpio.Write(config.errorLedPin, PinValue.Low);
 
-            Thread.Sleep(1000);
-
-            // Open clock
             try
             {
                 clock = new Clock(config.clockTickPin, gpio);
@@ -72,32 +67,23 @@ namespace Aws.Core
                 //    return;
                 //}
 
-                Helpers.LogEvent(nameof(Controller), "Opened connection to clock");
-                Helpers.LogEvent(nameof(Controller), "Current clock time is " +
+                Helpers.LogEvent("Clock time is " +
                     clock.DateTime.ToString("yyyy-MM-dd HH:mm:ss"));
             }
-            catch
+            catch (Exception ex)
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent(nameof(Controller), "Failed to open connection to clock");
+                Helpers.LogException(ex);
                 return;
             }
 
-            // Filesystem related work
             if (!StartupFileSystem())
                 return;
 
-            // Open data logger
-            try
-            {
-                dataLogger = new DataLogger(config, gpio);
-                dataLogger.Open();
-            }
-            catch (DataLoggerException)
-            {
-                gpio.Write(config.errorLedPin, PinValue.High);
-                return;
-            }
+            dataLogger = new DataLogger(config, gpio);
+            dataLogger.StartFailed += DataLogger_StartFailed;
+            dataLogger.DataLogged += DataLogger_DataLogged;
+            dataLogger.Open();
 
             gpio.Write(config.dataLedPin, PinValue.High);
             gpio.Write(config.errorLedPin, PinValue.High);
@@ -105,16 +91,11 @@ namespace Aws.Core
             gpio.Write(config.dataLedPin, PinValue.Low);
             gpio.Write(config.errorLedPin, PinValue.Low);
 
-            // Start clock
-            try
-            {
-                clock.Start();
-                Helpers.LogEvent(nameof(Controller), "Started clock");
-            }
+            try { clock.Start(); }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent(nameof(Controller), "Failed to start clock");
+                Helpers.LogEvent("Failed to start clock");
                 return;
             }
 
@@ -129,70 +110,62 @@ namespace Aws.Core
         /// </returns>
         private bool StartupFileSystem()
         {
-            // Create data directory
             try
             {
                 if (!Directory.Exists(Helpers.DATA_DIRECTORY))
-                {
                     Directory.CreateDirectory(Helpers.DATA_DIRECTORY);
-                    Helpers.LogEvent(nameof(Controller), "Created data directory");
-                }
             }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent(nameof(Controller), "Failed to create data directory");
+                Helpers.LogEvent("Failed to create data directory");
                 return false;
             }
 
-            // Create data database
             try
             {
-                if (!Database.Exists(Database.DatabaseFile.Data))
+                if (!Database.Exists(DatabaseFile.Data))
+                    Database.Create(DatabaseFile.Data);
+            }
+            catch
+            {
+                gpio.Write(config.errorLedPin, PinValue.High);
+                Helpers.LogEvent("Failed to create data database");
+                return false;
+            }
+
+            try
+            {
+                if ((bool)config.transmitter.transmit &&
+                    !Database.Exists(DatabaseFile.Transmit))
                 {
-                    Database.Create(Database.DatabaseFile.Data);
-                    Helpers.LogEvent(clock.DateTime, nameof(Controller), "Created data database");
+                    Database.Create(DatabaseFile.Transmit);
                 }
             }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent(nameof(Controller), "Failed to create data database");
+                Helpers.LogEvent("Failed to create transmit database");
                 return false;
             }
-
-            // Create transmit database
-            //try
-            //{
-            //    if (config.transmitter.transmitReports && 
-            //        !Database.Exists(Database.DatabaseFile.Transmit))
-            //    {
-            //        Database.Create(Database.DatabaseFile.Transmit);
-            //        Helpers.LogEvent(clock.DateTime, "Coordinator", "Created transmit database");
-            //    }
-            //}
-            //catch
-            //{
-            //gpio.Write(config.errorLedPin, PinValue.High);
-            //    Helpers.LogEvent("Coordinator", "Failed to create transmit database");
-            //    return false;
-            //}
 
             return true;
         }
 
         private void Clock_Ticked(object sender, ClockTickedEventArgs e)
         {
-            try
-            {
-                dataLogger.Tick(e.Time);
-            }
-            catch (DataLoggerException ex)
-            when (ex.Message == "Failed to start sampling")
-            {
-                gpio.Write(config.errorLedPin, PinValue.High);
-                clock.Stop();
-            }
+            dataLogger.Tick(e.Time);
+        }
+
+        private void DataLogger_StartFailed(object sender, EventArgs e)
+        {
+            gpio.Write(config.errorLedPin, PinValue.High);
+            clock.Stop();
+        }
+
+        private void DataLogger_DataLogged(object sender, DataLoggerEventArgs e)
+        {
+            // Transmit data
         }
     }
 }

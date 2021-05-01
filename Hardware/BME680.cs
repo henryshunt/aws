@@ -1,5 +1,4 @@
-﻿using Iot.Device.Bmxx80;
-using Iot.Device.Bmxx80.PowerMode;
+﻿using Iot.Device.Bmxx80.PowerMode;
 using System;
 using System.Device.I2c;
 using System.Threading;
@@ -7,14 +6,15 @@ using UnitsNet;
 
 namespace Aws.Hardware
 {
-    internal class BME680
+    internal class Bme680
     {
-        private Bme680 Device;
+        private Iot.Device.Bmxx80.Bme680 Device;
         private double SampleWaitTime;
 
         public void Open()
         {
-            Device = new Bme680(I2cDevice.Create(new I2cConnectionSettings(1, Bme680.DefaultI2cAddress)));
+            Device = new Iot.Device.Bmxx80.Bme680(I2cDevice.Create(
+                new I2cConnectionSettings(1, Iot.Device.Bmxx80.Bme680.DefaultI2cAddress)));
             SampleWaitTime = Device.GetMeasurementDuration(Device.HeaterProfile).Milliseconds;
         }
 
@@ -36,7 +36,8 @@ namespace Aws.Hardware
             Pressure pressure = new Pressure();
             Device.TryReadPressure(out pressure);
 
-            return new Tuple<double, double, double>(temperature.DegreesCelsius, humidity2, pressure.Hectopascals);
+            return new Tuple<double, double, double>(temperature.DegreesCelsius, humidity2,
+                pressure.Hectopascals);
         }
     }
 }

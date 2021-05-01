@@ -11,12 +11,12 @@ using System.Threading;
 namespace Aws.Core
 {
     /// <summary>
-    /// Represents the AWS subsystem responsible for collecting and logging sensor data.
+    /// Represents the subsystem responsible for collecting and logging sensor data.
     /// </summary>
     internal class DataLogger
     {
         /// <summary>
-        /// The AWS' configuration data.
+        /// The configuration data.
         /// </summary>
         private readonly Configuration config;
 
@@ -24,11 +24,6 @@ namespace Aws.Core
         /// The GPIO controller.
         /// </summary>
         private readonly GpioController gpio;
-
-        /// <summary>
-        /// Indicates whether the data logger is open and connected to the sensors.
-        /// </summary>
-        private bool isOpen = false;
 
         /// <summary>
         /// Indicates whether the data logger has started sampling from the sensors.
@@ -60,16 +55,23 @@ namespace Aws.Core
 
         #region Sensors
         private Mcp9808 mcp9808 = null;
-        private BME680 bme680 = null;
+        private Bme680 bme680 = null;
         private Satellite satellite = null;
         private RainwiseRainew111 rr111 = null;
         #endregion
 
+        public event EventHandler StartFailed;
+        public event EventHandler<DataLoggerEventArgs> DataLogged;
+
         /// <summary>
-        /// Initialises a new instance of the DataLogger class.
+        /// Initialises a new instance of the <see cref="DataLogger"/> class.
         /// </summary>
-        /// <param name="config">The AWS' configuration data.</param>
-        /// <param name="gpio">The GPIO controller.</param>
+        /// <param name="config">
+        /// The configuration data.
+        /// </param>
+        /// <param name="gpio">
+        /// The GPIO controller.
+        /// </param>
         public DataLogger(Configuration config, GpioController gpio)
         {
             this.config = config;
@@ -77,14 +79,13 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Opens a connection to the sensors marked as enabled in the AWS' configuration.
+        /// Opens a connection to the sensors enabled in the configuration.
         /// </summary>
         public void Open()
         {
-            if (isOpen)
-                throw new InvalidOperationException(nameof(DataLogger) + " is already open");
+            bool success = true;
 
-            if (config.sensors.mcp9808.enabled == true)
+            if ((bool)config.sensors.mcp9808.enabled)
             {
                 try
                 {
@@ -93,26 +94,28 @@ namespace Aws.Core
                 }
                 catch
                 {
-                    Helpers.LogEvent(null, nameof(DataLogger), "Failed to open MCP9808 sensor");
-                    throw new DataLoggerException("Failed to open a sensor");
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Helpers.LogEvent("Failed to open MCP9808 sensor");
+                    success = false;
                 }
             }
 
-            if (config.sensors.bme680.enabled == true)
+            if ((bool)config.sensors.bme680.enabled)
             {
                 try
                 {
-                    bme680 = new BME680();
+                    bme680 = new Bme680();
                     bme680.Open();
                 }
                 catch
                 {
-                    Helpers.LogEvent(null, nameof(DataLogger), "Failed to open BME680 sensor");
-                    throw new DataLoggerException("Failed to open a sensor");
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Helpers.LogEvent("Failed to open BME680 sensor");
+                    success = false;
                 }
             }
 
-            if (config.sensors.satellite.enabled == true)
+            if ((bool)config.sensors.satellite.enabled)
             {
                 SatelliteConfiguration satConfig = new SatelliteConfiguration();
 
@@ -135,12 +138,13 @@ namespace Aws.Core
                 }
                 catch
                 {
-                    Helpers.LogEvent(null, nameof(DataLogger), "Failed to open satellite sensor");
-                    throw new DataLoggerException("Failed to open a sensor");
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Helpers.LogEvent("Failed to open satellite sensor");
+                    success = false;
                 }
             }
 
-            if (config.sensors.rr111.enabled == true)
+            if ((bool)config.sensors.rr111.enabled)
             {
                 try
                 {
@@ -149,25 +153,32 @@ namespace Aws.Core
                 }
                 catch
                 {
-                    Helpers.LogEvent(null, nameof(DataLogger), "Failed to open RR111 sensor");
-                    throw new DataLoggerException("Failed to open a sensor");
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Helpers.LogEvent("Failed to open RR111 sensor");
+                    success = false;
                 }
             }
 
-            isOpen = true;
-            Helpers.LogEvent(null, nameof(DataLogger), "Opened connection to sensors");
+            if (!success)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Thread.Sleep(250);
+                    gpio.Write(config.errorLedPin, PinValue.Low);
+                    Thread.Sleep(250);
+                }
+            }
         }
 
         /// <summary>
-        /// This method should be called once per second. It essentially keeps the data logger
-        /// going.
+        /// This is the main method that keeps the data logger working. It should be called once per second.
         /// </summary>
-        /// <param name="time">The time of the tick.</param>
+        /// <param name="time">
+        /// The time of the tick.
+        /// </param>
         public void Tick(DateTime time)
         {
-            if (!isOpen)
-                throw new InvalidOperationException(nameof(DataLogger) + " is not open");
-
             if (!isSampling)
             {
                 // Start sampling at the top of the minute
@@ -182,13 +193,12 @@ namespace Aws.Core
 
                         startTime = time;
                         isSampling = true;
-                        Helpers.LogEvent(time, nameof(DataLogger), "Started sampling");
                     }
                     catch
                     {
                         gpio.Write(config.errorLedPin, PinValue.High);
-                        Helpers.LogEvent(time, nameof(DataLogger), "Failed to start sampling");
-                        throw new DataLoggerException("Failed to start sampling");
+                        Helpers.LogEvent("Failed to start sampling");
+                        StartFailed?.Invoke(this, new EventArgs());
                     }
                 }
                 else
@@ -209,55 +219,52 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Samples the sensors marked as enabled in the AWS' configuration and adds the values to
+        /// Reads each of the sensors enabled in the configuration and stores the values in
         /// <see cref="sampleStore"/>.
         /// </summary>
-        /// <param name="time">The time of the sample.</param>
+        /// <param name="time">
+        /// The time of the sample.
+        /// </param>
         private void Sample(DateTime time)
         {
-            if (config.sensors.mcp9808.enabled == true)
+            if ((bool)config.sensors.mcp9808.enabled)
+            {
+                try { sampleStore.AirTemperature.Add(mcp9808.Sample()); }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Helpers.LogEvent("Failed to sample MCP9808 sensor");
+                }
+            }
+
+            if ((bool)config.sensors.bme680.enabled)
             {
                 try
                 {
-                    sampleStore.AirTemperature.Add(mcp9808.Sample());
+                    Tuple<double, double, double> sample = bme680.Sample();
+                    sampleStore.RelativeHumidity.Add(sample.Item2);
+                    sampleStore.StationPressure.Add(sample.Item3);
                 }
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent(time, nameof(DataLogger), "Failed to sample mcp9808 sensor");
+                    Helpers.LogEvent("Failed to sample BME680 sensor");
                 }
             }
 
-            if (config.sensors.bme680.enabled == true)
-            {
-                try
-                {
-                    Tuple<double, double, double> bme680Sample = bme680.Sample();
-                    sampleStore.RelativeHumidity.Add(bme680Sample.Item2);
-                    sampleStore.BarometricPressure.Add(bme680Sample.Item3);
-                }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent(time, nameof(DataLogger), "Failed to sample bme680 sensor");
-                }
-            }
-
-            if (config.sensors.satellite.enabled == true)
+            if ((bool)config.sensors.satellite.enabled)
             {
                 try
                 {
                     SatelliteSample sample = satellite.Sample();
 
-                    if (config.sensors.satellite.i8pa.enabled == true &&
-                        sample.WindSpeed != null)
+                    if ((bool)config.sensors.satellite.i8pa.enabled && sample.WindSpeed != null)
                     {
                         sampleStore.WindSpeed.Add(new KeyValuePair<DateTime, double>(
                             time, ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMphPerHz));
                     }
 
-                    if (config.sensors.satellite.iev2.enabled == true &&
-                        sample.WindDirection != null)
+                    if ((bool)config.sensors.satellite.iev2.enabled && sample.WindDirection != null)
                     {
                         sampleStore.WindDirection.Add(new KeyValuePair<DateTime, int>(
                             time, (int)sample.WindDirection));
@@ -266,20 +273,17 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent(time, nameof(DataLogger), "Failed to sample satellite sensor");
+                    Helpers.LogEvent("Failed to sample satellite sensor");
                 }
             }
 
-            if (config.sensors.rr111.enabled == true)
+            if ((bool)config.sensors.rr111.enabled)
             {
-                try
-                {
-                    sampleStore.Rainfall.Add(rr111.Sample());
-                }
+                try { sampleStore.Rainfall.Add(rr111.Sample()); }
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent(time, nameof(DataLogger), "Failed to sample rr111 sensor");
+                    Helpers.LogEvent("Failed to sample RR111 sensor");
                 }
             }
         }
@@ -303,14 +307,38 @@ namespace Aws.Core
             new Thread(() =>
             {
                 UpdateWindStores(time, store);
-                Database.WriteReport(GenerateReport(time, store));
+
+                Report report = GenerateReport(time, store);
+                Database.WriteReport(report, DatabaseFile.Data);
+
+                string repstr = "{0} -- T:{1:0.0}, H:{2:0.0}, DP:{3:0.0}, WS:{4:0.0}, " +
+                    "WG:{5:0.0}, WD:{6:0}, R:{7:0.000}, P:{8:0.0}";
+                Console.WriteLine(string.Format(repstr, report.Time, report.AirTemperature,
+                    report.RelativeHumidity, report.DewPoint, report.WindSpeed, report.WindGust,
+                    report.WindDirection, report.Rainfall, report.StationPressure));
+
+                if ((bool)config.transmitter.transmit)
+                    Database.WriteReport(report, DatabaseFile.Transmit);
 
                 // At start of new day, recalculate previous day because it needs to include the
                 // data reported at 00:00:00 of the new day
                 if (time.Hour == 0 && time.Minute == 0)
-                    CalculateDailyStatistics(time - new TimeSpan(0, 1, 0));
+                {
+                    DateTime local2 = TimeZoneInfo.ConvertTimeFromUtc(time - new TimeSpan(0, 1, 0),
+                        config.timeZone);
+                    DailyStatistic statistic2 = Database.CalculateDailyStatistic(local2, config.timeZone);
+                    Database.WriteDailyStatistic(statistic2, DatabaseFile.Data);
 
-                CalculateDailyStatistics(time);
+                    if ((bool)config.transmitter.transmit)
+                        Database.WriteDailyStatistic(statistic2, DatabaseFile.Transmit);
+                }
+
+                DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.timeZone);
+                DailyStatistic statistic = Database.CalculateDailyStatistic(local, config.timeZone);
+                Database.WriteDailyStatistic(statistic, DatabaseFile.Data);
+
+                if ((bool)config.transmitter.transmit)
+                    Database.WriteDailyStatistic(statistic, DatabaseFile.Transmit);
 
                 // Keep the LED on for at least 1.5 seconds
                 timer.Stop();
@@ -322,20 +350,26 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Produces a report from a collection of samples.
+        /// Produces a report from the data in a sample store and the ten minute wind stores.
         /// </summary>
-        /// <param name="time">Time of the report.</param>
-        /// <param name="store">The sample store containing the data to calculate the report from.</param>
-        /// <returns>The produced report.</returns>
-        private Report GenerateReport(DateTime time, SampleStore store)
+        /// <param name="time">
+        /// The time of the report.
+        /// </param>
+        /// <param name="samples">
+        /// A sample store containing the data to calculate the report for.
+        /// </param>
+        /// <returns>
+        /// The produced report.
+        /// </returns>
+        private Report GenerateReport(DateTime time, SampleStore samples)
         {
             Report report = new Report(time);
 
-            if (store.AirTemperature.Count > 0)
-                report.AirTemperature = Math.Round(store.AirTemperature.Average(), 1);
+            if (samples.AirTemperature.Count > 0)
+                report.AirTemperature = Math.Round(samples.AirTemperature.Average(), 1);
 
-            if (store.RelativeHumidity.Count > 0)
-                report.RelativeHumidity = Math.Round(store.RelativeHumidity.Average(), 1);
+            if (samples.RelativeHumidity.Count > 0)
+                report.RelativeHumidity = Math.Round(samples.RelativeHumidity.Average(), 1);
 
             // Need at least 10 minutes of wind data
             if (time >= startTime + TimeSpan.FromMinutes(10))
@@ -350,31 +384,32 @@ namespace Aws.Core
                     report.WindDirection = (int)windValues.Item3;
             }
 
-            if (config.sensors.rr111.enabled == true)
+            if ((bool)config.sensors.rr111.enabled)
             {
-                if (store.Rainfall.Count > 0)
-                    report.Rainfall = store.Rainfall.Sum();
+                if (samples.Rainfall.Count > 0)
+                    report.Rainfall = samples.Rainfall.Sum();
                 else report.Rainfall = 0;
             }
 
-            if (store.BarometricPressure.Count > 0)
-                report.BarometricPressure = Math.Round(store.BarometricPressure.Average(), 1);
+            if (samples.StationPressure.Count > 0)
+                report.StationPressure = Math.Round(samples.StationPressure.Average(), 1);
 
             if (report.AirTemperature != null && report.RelativeHumidity != null)
             {
-                report.DewPoint = Math.Round(Helpers.CalculateDewPoint(
-                    (double)report.AirTemperature, (double)report.RelativeHumidity), 1);
+                double dewPoint = Helpers.CalculateDewPoint(
+                    (double)report.AirTemperature, (double)report.RelativeHumidity);
+
+                report.DewPoint = Math.Round(dewPoint, 1);
             }
 
-            if (report.BarometricPressure != null && report.AirTemperature != null)
+            if (report.StationPressure != null && report.AirTemperature != null)
             {
-                double mslp = Helpers.CalculateMslp((double)report.BarometricPressure,
+                double mslp = Helpers.CalculateMslp((double)report.StationPressure,
                     (double)report.AirTemperature, (double)config.position.elevation);
 
                 report.MslPressure = Math.Round(mslp, 1);
             }
 
-            Console.WriteLine(report.ToString());
             return report;
         }
 
@@ -458,131 +493,10 @@ namespace Aws.Core
                 }
 
                 if (vectors.Count > 0)
-                    windDirection = ((int)Math.Round(Helpers.CalculateWindDirection(vectors))) % 360;
+                    windDirection = ((int)Math.Round(Helpers.VectorAverage(vectors))) % 360;
             }
 
             return (windSpeed, windGust, windDirection);
-        }
-
-        /// <summary>
-        /// Calculates various statistics for the local day and writes them to the database.
-        /// </summary>
-        /// <param name="time">The UTC time to create the statistics for.</param>
-        private void CalculateDailyStatistics(DateTime time)
-        {
-            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.timeZone);
-            DateTime start = new DateTime(local.Year, local.Month, local.Day, 0, 1, 0);
-            DateTime end = start + new TimeSpan(1, 0, 0, 0) - new TimeSpan(0, 1, 0);
-
-            start = TimeZoneInfo.ConvertTimeToUtc(start);
-            end = TimeZoneInfo.ConvertTimeToUtc(end);
-
-            using (SqliteConnection connection = Database.Connect(Database.DatabaseFile.Data))
-            {
-                connection.Open();
-
-                string sql = "SELECT " +
-                    "ROUND(AVG(airTemp), 1) AS airTempAvg, MIN(airTemp) AS airTempMin, MAX(airTemp) AS airTempMax, " +
-                    "ROUND(AVG(relHum), 1) AS relHumAvg, MIN(relHum) AS relHumMin, MAX(relHum) AS relHumMax, " +
-                    "ROUND(AVG(windSpeed), 1) AS windSpeedAvg, MIN(windSpeed) AS windSpeedMin, MAX(windSpeed) AS windSpeedMax, " +
-                    //"ATAN2(AVG(windSpeed * SIN(windDir * PI() / 180)), AVG(windSpeed * COS(windDir * PI() / 180))) * 180 / PI() as windDirAvg, " +
-                    "ROUND(AVG(windGust), 1) AS windGustAvg, MIN(windGust) AS windGustMin, MAX(windGust) AS windGustMax, " +
-                    "SUM(rainfall) AS rainfallTtl, SUM(sunDur) AS sunDurTtl, " +
-                    "ROUND(AVG(mslPres), 1) AS mslPresAvg, MIN(mslPres) AS mslPresMin, MAX(mslPres) AS mslPresMax " +
-                    "FROM reports WHERE time BETWEEN @start AND @end";
-
-                SqliteCommand query = new SqliteCommand(sql, connection);
-                query.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd HH:mm:ss"));
-                query.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                SqliteDataReader reader = query.ExecuteReader();
-                reader.Read();
-
-                sql = "INSERT INTO dayStats VALUES (" +
-                    "@date, @airTempAvg, @airTempMin, @airTempMax, @relHumAvg, @relHumMin, @relHumMax, " +
-                    "@windSpeedAvg, @windSpeedMin, @windSpeedMax, NULL, @windGustAvg, @windGustMin, @windGustMax, " +
-                    "@rainfallTtl, @sunDurTtl, @mslPresAvg, @mslPresMin, @mslPresMax) " +
-                    "ON CONFLICT (date) " +
-                    "DO UPDATE SET airTempAvg = @airTempAvg, airTempMin = @airTempMin, airTempMax = @airTempMax, " +
-                    "relHumAvg = @relHumAvg, relHumMin = @relHumMin, relHumMax = @relHumMax, " +
-                    "windSpeedAvg = @windSpeedAvg, windSpeedMin = @windSpeedMin, windSpeedMax = @windSpeedMax, " +
-                    "windGustAvg = @windGustAvg, windGustMin = @windGustMin, windGustMax = @windGustMax, " +
-                    "rainfallTtl = @rainfallTtl, sunDurTtl = @sunDurTtl, mslPresAvg = @mslPresAvg, " +
-                    "mslPresMin = @mslPresMin, mslPresMax = @mslPresMax";
-
-                query = new SqliteCommand(sql, connection);
-                query.Parameters.AddWithValue("@date", local.ToString("yyyy-MM-dd"));
-
-                if (!reader.IsDBNull(0))
-                    query.Parameters.AddWithValue("@airTempAvg", reader.GetDouble(0));
-                else query.Parameters.AddWithValue("@airTempAvg", DBNull.Value);
-
-                if (!reader.IsDBNull(1))
-                    query.Parameters.AddWithValue("@airTempMin", reader.GetDouble(1));
-                else query.Parameters.AddWithValue("@airTempMin", DBNull.Value);
-
-                if (!reader.IsDBNull(2))
-                    query.Parameters.AddWithValue("@airTempMax", reader.GetDouble(2));
-                else query.Parameters.AddWithValue("@airTempMax", DBNull.Value);
-
-                if (!reader.IsDBNull(3))
-                    query.Parameters.AddWithValue("@relHumAvg", reader.GetDouble(3));
-                else query.Parameters.AddWithValue("@relHumAvg", DBNull.Value);
-
-                if (!reader.IsDBNull(4))
-                    query.Parameters.AddWithValue("@relHumMin", reader.GetDouble(4));
-                else query.Parameters.AddWithValue("@relHumMin", DBNull.Value);
-
-                if (!reader.IsDBNull(5))
-                    query.Parameters.AddWithValue("@relHumMax", reader.GetDouble(5));
-                else query.Parameters.AddWithValue("@relHumMax", DBNull.Value);
-
-                if (!reader.IsDBNull(6))
-                    query.Parameters.AddWithValue("@windSpeedAvg", reader.GetDouble(6));
-                else query.Parameters.AddWithValue("@windSpeedAvg", DBNull.Value);
-
-                if (!reader.IsDBNull(7))
-                    query.Parameters.AddWithValue("@windSpeedMin", reader.GetDouble(7));
-                else query.Parameters.AddWithValue("@windSpeedMin", DBNull.Value);
-
-                if (!reader.IsDBNull(8))
-                    query.Parameters.AddWithValue("@windSpeedMax", reader.GetDouble(8));
-                else query.Parameters.AddWithValue("@windSpeedMax", DBNull.Value);
-
-                if (!reader.IsDBNull(9))
-                    query.Parameters.AddWithValue("@windGustAvg", reader.GetDouble(9));
-                else query.Parameters.AddWithValue("@windGustAvg", DBNull.Value);
-
-                if (!reader.IsDBNull(10))
-                    query.Parameters.AddWithValue("@windGustMin", reader.GetDouble(10));
-                else query.Parameters.AddWithValue("@windGustMin", DBNull.Value);
-
-                if (!reader.IsDBNull(11))
-                    query.Parameters.AddWithValue("@windGustMax", reader.GetDouble(11));
-                else query.Parameters.AddWithValue("@windGustMax", DBNull.Value);
-
-                if (!reader.IsDBNull(12))
-                    query.Parameters.AddWithValue("@rainfallTtl", reader.GetDouble(12));
-                else query.Parameters.AddWithValue("@rainfallTtl", DBNull.Value);
-
-                if (!reader.IsDBNull(13))
-                    query.Parameters.AddWithValue("@sunDurTtl", reader.GetDouble(13));
-                else query.Parameters.AddWithValue("@sunDurTtl", DBNull.Value);
-
-                if (!reader.IsDBNull(14))
-                    query.Parameters.AddWithValue("@mslPresAvg", reader.GetDouble(14));
-                else query.Parameters.AddWithValue("@mslPresAvg", DBNull.Value);
-
-                if (!reader.IsDBNull(15))
-                    query.Parameters.AddWithValue("@mslPresMin", reader.GetDouble(15));
-                else query.Parameters.AddWithValue("@mslPresMin", DBNull.Value);
-
-                if (!reader.IsDBNull(16))
-                    query.Parameters.AddWithValue("@mslPresMax", reader.GetDouble(16));
-                else query.Parameters.AddWithValue("@mslPresMax", DBNull.Value);
-
-                query.ExecuteNonQuery();
-            }
         }
     }
 }

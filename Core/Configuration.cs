@@ -21,6 +21,7 @@ namespace Aws.Core
         public dynamic position { get; private set; }
         public TimeZoneInfo timeZone { get; private set; }
         public dynamic sensors { get; private set; }
+        public dynamic transmitter { get; private set; }
 
         /// <summary>
         /// Initialises a new instance of the <see cref="Configuration"/> class.
@@ -56,6 +57,7 @@ namespace Aws.Core
             position = jsonObject.position;
             timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
             sensors = jsonObject.sensors;
+            transmitter = jsonObject.transmitter;
 
             if ((bool)sensors.satellite.i8pa.enabled || (bool)sensors.satellite.iev2.enabled)
                 sensors.satellite.enabled = true;
