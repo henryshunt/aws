@@ -115,25 +115,33 @@ namespace Aws.Core
                 }
             }
 
-            if ((bool)config.sensors.satellite.enabled)
+            if ((bool)config.sensors.satellite.i8pa.enabled ||
+                (bool)config.sensors.satellite.iev2.enabled ||
+                (bool)config.sensors.satellite.isds.enabled)
             {
                 SatelliteConfiguration satConfig = new SatelliteConfiguration();
 
-                if (config.sensors.satellite.i8pa.enabled == true)
+                if ((bool)config.sensors.satellite.i8pa.enabled)
                 {
                     satConfig.I8paEnabled = true;
                     satConfig.I8paPin = (int)config.sensors.satellite.i8pa.pin;
                 }
 
-                if (config.sensors.satellite.iev2.enabled == true)
+                if ((bool)config.sensors.satellite.iev2.enabled)
                 {
                     satConfig.Iev2Enabled = true;
                     satConfig.Iev2Pin = (int)config.sensors.satellite.iev2.pin;
                 }
 
+                if ((bool)config.sensors.satellite.isds.enabled)
+                {
+                    satConfig.IsdsEnabled = true;
+                    satConfig.IsdsPin = (int)config.sensors.satellite.isds.pin;
+                }
+
                 try
                 {
-                    satellite = new Satellite(1, satConfig);
+                    satellite = new Satellite((int)config.sensors.satellite.port, satConfig);
                     satellite.Open();
                 }
                 catch
@@ -186,8 +194,6 @@ namespace Aws.Core
                 {
                     try
                     {
-                        if (config.sensors.satellite.enabled == true)
-                            satellite.Start();
                         if (config.sensors.rr111.enabled == true)
                             rr111.Start();
 
@@ -269,6 +275,9 @@ namespace Aws.Core
                         sampleStore.WindDirection.Add(new KeyValuePair<DateTime, int>(
                             time, (int)sample.WindDirection));
                     }
+
+                    if ((bool)config.sensors.satellite.isds.enabled && sample.SunshineDuration != null)
+                        sampleStore.SunshineDuration.Add((bool)sample.SunshineDuration);
                 }
                 catch
                 {
@@ -311,11 +320,19 @@ namespace Aws.Core
                 Report report = GenerateReport(time, store);
                 Database.WriteReport(report, DatabaseFile.Data);
 
-                string repstr = "{0} -- T:{1:0.0}, H:{2:0.0}, DP:{3:0.0}, WS:{4:0.0}, " +
-                    "WG:{5:0.0}, WD:{6:0}, R:{7:0.000}, P:{8:0.0}";
-                Console.WriteLine(string.Format(repstr, report.Time, report.AirTemperature,
-                    report.RelativeHumidity, report.DewPoint, report.WindSpeed, report.WindGust,
-                    report.WindDirection, report.Rainfall, report.StationPressure));
+                try
+                {
+                    string repstr = "{0} -- T:{1:0.0}, H:{2:0.0}, DP:{3:0.0}, WS:{4:0.0}, " +
+                        "WG:{5:0.0}, WD:{6:0}, R:{7:0.000}, P:{8:0.0}";
+                    Console.WriteLine(string.Format(repstr, report.Time, report.AirTemperature,
+                        report.RelativeHumidity, report.DewPoint, report.WindSpeed, report.WindGust,
+                        report.WindDirection, report.Rainfall, report.StationPressure));
+                }
+                catch (Exception ex)
+                {
+                    Helpers.LogException(ex);
+                }
+
 
                 if ((bool)config.transmitter.transmit)
                     Database.WriteReport(report, DatabaseFile.Transmit);
@@ -390,6 +407,9 @@ namespace Aws.Core
                     report.Rainfall = samples.Rainfall.Sum();
                 else report.Rainfall = 0;
             }
+
+            if (samples.SunshineDuration.Count > 0)
+                report.SunshineDuration = samples.SunshineDuration.Select(s => s).Count();
 
             if (samples.StationPressure.Count > 0)
                 report.StationPressure = Math.Round(samples.StationPressure.Average(), 1);

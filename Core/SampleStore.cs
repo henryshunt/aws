@@ -12,6 +12,7 @@ namespace Aws.Core
         public readonly List<KeyValuePair<DateTime, int>> WindDirection
             = new List<KeyValuePair<DateTime, int>>();
         public readonly List<double> Rainfall = new List<double>();
+        public readonly List<bool> SunshineDuration = new List<bool>();
         public readonly List<double> StationPressure = new List<double>();
     }
 }

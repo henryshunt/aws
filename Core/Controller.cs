@@ -79,7 +79,7 @@ namespace Aws.Core
 
             if (!StartupFileSystem())
                 return;
-
+            
             dataLogger = new DataLogger(config, gpio);
             dataLogger.StartFailed += DataLogger_StartFailed;
             dataLogger.DataLogged += DataLogger_DataLogged;
