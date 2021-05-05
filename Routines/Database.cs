@@ -245,7 +245,7 @@ namespace Aws.Routines
                     }
 
                     if (vectors.Count > 0)
-                        return (int)(Math.Round(Helpers.VectorAverage(vectors)) % 360);
+                        return (int)(Math.Round(Helpers.VectorDirectionAverage(vectors)) % 360);
                     else return null;
                 }
             }

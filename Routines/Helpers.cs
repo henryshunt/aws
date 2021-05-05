@@ -29,7 +29,7 @@ namespace Aws.Routines
             Console.WriteLine(exception.ToString());
         }
 
-        public static double VectorAverage(List<Vector> vectors)
+        public static double VectorDirectionAverage(List<Vector> vectors)
         {
             if (vectors.Count == 0)
                 throw new ArgumentException(nameof(vectors) + " cannot be empty");
