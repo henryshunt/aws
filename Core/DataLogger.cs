@@ -1,10 +1,8 @@
 ﻿using Aws.Hardware;
 using Aws.Routines;
-using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Device.Gpio;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 
@@ -19,6 +17,11 @@ namespace Aws.Core
         /// The configuration data.
         /// </summary>
         private readonly Configuration config;
+
+        /// <summary>
+        /// The clock.
+        /// </summary>
+        private Clock clock;
 
         /// <summary>
         /// The GPIO controller.
@@ -36,8 +39,7 @@ namespace Aws.Core
         private DateTime startTime;
 
         /// <summary>
-        /// Stores the sensor samples taken between the previous and next reports (a duration of
-        /// one minute).
+        /// Stores the sensor samples taken between the previous and next reports (a duration of one minute).
         /// </summary>
         private SampleStore sampleStore = new SampleStore();
 
@@ -60,7 +62,6 @@ namespace Aws.Core
         private RainwiseRainew111 rr111 = null;
         #endregion
 
-        public event EventHandler StartFailed;
         public event EventHandler<DataLoggerEventArgs> DataLogged;
 
         /// <summary>
@@ -69,13 +70,19 @@ namespace Aws.Core
         /// <param name="config">
         /// The configuration data.
         /// </param>
+        /// <param name="clock">
+        /// The clock. When the clock is started, the data logger will start operating.
+        /// </param>
         /// <param name="gpio">
         /// The GPIO controller.
         /// </param>
-        public DataLogger(Configuration config, GpioController gpio)
+        public DataLogger(Configuration config, Clock clock, GpioController gpio)
         {
             this.config = config;
+            this.clock = clock;
             this.gpio = gpio;
+
+            clock.Ticked += Clock_Ticked;
         }
 
         /// <summary>
@@ -179,37 +186,17 @@ namespace Aws.Core
             }
         }
 
-        /// <summary>
-        /// This is the main method that keeps the data logger working. It should be called once per second.
-        /// </summary>
-        /// <param name="time">
-        /// The time of the tick.
-        /// </param>
-        public void Tick(DateTime time)
+        public void Clock_Ticked(object sender, ClockTickedEventArgs e)
         {
             if (!isSampling)
             {
-                // Start sampling at the top of the minute
-                if (time.Second == 0)
+                if (e.Time.Second == 0)
                 {
-                    try
-                    {
-                        if (config.sensors.rr111.enabled == true)
-                            rr111.Start();
-
-                        startTime = time;
-                        isSampling = true;
-                    }
-                    catch
-                    {
-                        gpio.Write(config.errorLedPin, PinValue.High);
-                        Helpers.LogEvent("Failed to start sampling");
-                        StartFailed?.Invoke(this, new EventArgs());
-                    }
+                    startTime = e.Time;
+                    isSampling = true;
                 }
                 else
                 {
-                    // Flash the LED until sampling starts
                     gpio.Write(config.dataLedPin, PinValue.High);
                     Thread.Sleep(500);
                     gpio.Write(config.dataLedPin, PinValue.Low);
@@ -218,14 +205,29 @@ namespace Aws.Core
                 return;
             }
 
-            Sample(time);
+            try { Sample(e.Time); }
+            catch { }
 
-            if (time.Second == 0)
-                Log(time);
+            if (e.Time.Second == 0)
+            {
+                try
+                {
+                    // New thread allows further sampling to continue in the background
+                    new Thread(() =>
+                    {
+                        Log(e.Time);
+                        DataLogged?.Invoke(this, new DataLoggerEventArgs(e.Time));
+                    }).Start();
+                }
+                catch (Exception ex)
+                {
+                    Helpers.LogException(ex);
+                }
+            }
         }
 
         /// <summary>
-        /// Reads each of the sensors enabled in the configuration and stores the values in
+        /// Samples each of the sensors enabled in the configuration and stores the values in
         /// <see cref="sampleStore"/>.
         /// </summary>
         /// <param name="time">
@@ -234,136 +236,83 @@ namespace Aws.Core
         private void Sample(DateTime time)
         {
             if ((bool)config.sensors.mcp9808.enabled)
-            {
-                try { sampleStore.AirTemperature.Add(mcp9808.Sample()); }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent("Failed to sample MCP9808 sensor");
-                }
-            }
+                sampleStore.AirTemperature.Add(mcp9808.Sample());
 
             if ((bool)config.sensors.bme680.enabled)
             {
-                try
-                {
-                    Tuple<double, double, double> sample = bme680.Sample();
-                    sampleStore.RelativeHumidity.Add(sample.Item2);
-                    sampleStore.StationPressure.Add(sample.Item3);
-                }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent("Failed to sample BME680 sensor");
-                }
+                Tuple<double, double, double> sample = bme680.Sample();
+                sampleStore.RelativeHumidity.Add(sample.Item2);
+                sampleStore.StationPressure.Add(sample.Item3);
             }
 
             if ((bool)config.sensors.satellite.enabled)
             {
-                try
+                SatelliteSample sample = satellite.Sample();
+
+                if (sample.WindSpeed != null)
                 {
-                    SatelliteSample sample = satellite.Sample();
-
-                    if ((bool)config.sensors.satellite.i8pa.enabled && sample.WindSpeed != null)
-                    {
-                        sampleStore.WindSpeed.Add(new KeyValuePair<DateTime, double>(
-                            time, ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMphPerHz));
-                    }
-
-                    if ((bool)config.sensors.satellite.iev2.enabled && sample.WindDirection != null)
-                    {
-                        sampleStore.WindDirection.Add(new KeyValuePair<DateTime, double>(
-                            time, (double)sample.WindDirection));
-                    }
-
-                    if ((bool)config.sensors.satellite.isds.enabled && sample.SunshineDuration != null)
-                        sampleStore.SunshineDuration.Add((bool)sample.SunshineDuration);
+                    sampleStore.WindSpeed.Add(new KeyValuePair<DateTime, double>(
+                        time, ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMphPerHz));
                 }
-                catch
+
+                if (sample.WindDirection != null)
                 {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent("Failed to sample satellite sensor");
+                    sampleStore.WindDirection.Add(new KeyValuePair<DateTime, double>(
+                        time, (double)sample.WindDirection));
                 }
+
+                if (sample.SunshineDuration != null)
+                    sampleStore.SunshineDuration.Add((bool)sample.SunshineDuration);
             }
 
             if ((bool)config.sensors.rr111.enabled)
-            {
-                try { sampleStore.Rainfall.Add(rr111.Sample()); }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    Helpers.LogEvent("Failed to sample RR111 sensor");
-                }
-            }
+                sampleStore.Rainfall.Add(rr111.Sample());
         }
 
         /// <summary>
-        /// Produces and logs a report to the database.
+        /// The logging routine, which produces and logs a report, and generates and logs statistics.
         /// </summary>
-        /// <param name="time">The time of the report.</param>
+        /// <param name="time">
+        /// The time of the report.
+        /// </param>
         private void Log(DateTime time)
         {
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-
-            gpio.Write(config.dataLedPin, PinValue.High);
             gpio.Write(config.errorLedPin, PinValue.Low);
 
-            // Cache the sample store for use here and clear the original store
-            SampleStore store = sampleStore;
+            SampleStore samples = sampleStore;
             sampleStore = new SampleStore();
 
-            new Thread(() =>
+            UpdateWindStores(time, samples);
+
+            Report report = GenerateReport(time, samples);
+            Database.WriteReport(report, DatabaseFile.Data);
+
+            if ((bool)config.transmitter.transmit)
+                Database.WriteReport(report, DatabaseFile.Transmit);
+
+            // At start of new day, recalculate previous day's statistics because it needs to
+            // include the data reported at 00:00:00 of the new day
+            if (time.Hour == 0 && time.Minute == 0)
             {
-                UpdateWindStores(time, store);
-
-                Report report = GenerateReport(time, store);
-                Database.WriteReport(report, DatabaseFile.Data);
-
-                try
-                {
-                    string repstr = "{0} -- T:{1:0.0}, H:{2:0.0}, DP:{3:0.0}, WS:{4:0.0}, " +
-                        "WG:{5:0.0}, WD:{6:0}, R:{7:0.000}, P:{8:0.0}";
-                    Console.WriteLine(string.Format(repstr, report.Time, report.AirTemperature,
-                        report.RelativeHumidity, report.DewPoint, report.WindSpeed, report.WindGust,
-                        report.WindDirection, report.Rainfall, report.StationPressure));
-                }
-                catch (Exception ex)
-                {
-                    Helpers.LogException(ex);
-                }
-
+                DateTime local2 = TimeZoneInfo.ConvertTimeFromUtc(time - new TimeSpan(0, 1, 0),
+                    config.timeZone);
+                DailyStatistic statistic2 = Database.CalculateDailyStatistic(local2, config.timeZone);
+                Database.WriteDailyStatistic(statistic2, DatabaseFile.Data);
 
                 if ((bool)config.transmitter.transmit)
-                    Database.WriteReport(report, DatabaseFile.Transmit);
+                    Database.WriteDailyStatistic(statistic2, DatabaseFile.Transmit);
+            }
 
-                // At start of new day, recalculate previous day because it needs to include the
-                // data reported at 00:00:00 of the new day
-                if (time.Hour == 0 && time.Minute == 0)
-                {
-                    DateTime local2 = TimeZoneInfo.ConvertTimeFromUtc(time - new TimeSpan(0, 1, 0),
-                        config.timeZone);
-                    DailyStatistic statistic2 = Database.CalculateDailyStatistic(local2, config.timeZone);
-                    Database.WriteDailyStatistic(statistic2, DatabaseFile.Data);
+            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.timeZone);
+            DailyStatistic statistic = Database.CalculateDailyStatistic(local, config.timeZone);
+            Database.WriteDailyStatistic(statistic, DatabaseFile.Data);
 
-                    if ((bool)config.transmitter.transmit)
-                        Database.WriteDailyStatistic(statistic2, DatabaseFile.Transmit);
-                }
+            if ((bool)config.transmitter.transmit)
+                Database.WriteDailyStatistic(statistic, DatabaseFile.Transmit);
 
-                DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.timeZone);
-                DailyStatistic statistic = Database.CalculateDailyStatistic(local, config.timeZone);
-                Database.WriteDailyStatistic(statistic, DatabaseFile.Data);
-
-                if ((bool)config.transmitter.transmit)
-                    Database.WriteDailyStatistic(statistic, DatabaseFile.Transmit);
-
-                // Keep the LED on for at least 1.5 seconds
-                timer.Stop();
-                if (timer.ElapsedMilliseconds < 1500)
-                    Thread.Sleep(1500 - (int)timer.ElapsedMilliseconds);
-
-                gpio.Write(config.dataLedPin, PinValue.Low);
-            }).Start();
+            gpio.Write(config.dataLedPin, PinValue.High);
+            Thread.Sleep(1500);
+            gpio.Write(config.dataLedPin, PinValue.Low);
         }
 
         /// <summary>

@@ -57,7 +57,6 @@ namespace Aws.Core
             try
             {
                 clock = new Clock(config.clockTickPin, gpio);
-                clock.Ticked += Clock_Ticked;
                 clock.Open();
 
                 //if (!clock.IsDateTimeValid)
@@ -79,17 +78,18 @@ namespace Aws.Core
 
             if (!StartupFileSystem())
                 return;
-            
-            dataLogger = new DataLogger(config, gpio);
-            dataLogger.StartFailed += DataLogger_StartFailed;
+
+            dataLogger = new DataLogger(config, clock, gpio);
             dataLogger.DataLogged += DataLogger_DataLogged;
             dataLogger.Open();
 
+            Thread.Sleep(1500);
             gpio.Write(config.dataLedPin, PinValue.High);
             gpio.Write(config.errorLedPin, PinValue.High);
             Thread.Sleep(2500);
             gpio.Write(config.dataLedPin, PinValue.Low);
             gpio.Write(config.errorLedPin, PinValue.Low);
+            Thread.Sleep(1500);
 
             try { clock.Start(); }
             catch
@@ -150,17 +150,6 @@ namespace Aws.Core
             }
 
             return true;
-        }
-
-        private void Clock_Ticked(object sender, ClockTickedEventArgs e)
-        {
-            dataLogger.Tick(e.Time);
-        }
-
-        private void DataLogger_StartFailed(object sender, EventArgs e)
-        {
-            gpio.Write(config.errorLedPin, PinValue.High);
-            clock.Stop();
         }
 
         private void DataLogger_DataLogged(object sender, DataLoggerEventArgs e)
