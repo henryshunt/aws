@@ -4,7 +4,7 @@ using System.Device.Gpio;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using static Aws.Misc.Utilities2;
+using static Aws.Misc.Utilities;
 
 namespace Aws.Core
 {

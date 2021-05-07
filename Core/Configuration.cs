@@ -8,7 +8,7 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using static Aws.Misc.Utilities2;
+using static Aws.Misc.Utilities;
 
 namespace Aws.Core
 {

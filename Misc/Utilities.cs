@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Aws.Misc
 {
-    internal static class Utilities2
+    internal static class Utilities
     {
         public static string LOGGING_FILE = "/var/logs/aws.log";
         public static string CONFIG_FILE = "/etc/aws.json";

@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static Aws.Misc.Utilities2;
+using static Aws.Misc.Utilities;
 
 namespace Aws.Core
 {

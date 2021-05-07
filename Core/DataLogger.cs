@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Device.Gpio;
 using System.Linq;
 using System.Threading;
-using static Aws.Misc.Utilities2;
+using static Aws.Misc.Utilities;
 
 namespace Aws.Core
 {
