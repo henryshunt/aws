@@ -5,12 +5,12 @@
     /// </summary>
     internal enum AwsSensor
     {
-        Mcp9808,
+        AirTemperature,
         Bme680,
         Satellite,
-        I8pa,
-        Iev2,
-        Isds,
-        Rr111
+        WindSpeed,
+        WindDirection,
+        SunshineDuration,
+        Rainfall
     }
 }

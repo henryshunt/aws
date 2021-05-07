@@ -35,7 +35,7 @@
             "type": "object",
 
             "properties": {
-                "mcp9808": { "type": "object" },
+                "airTemp": { "type": "object" },
                 "bme680": { "type": "object" },
 
                 "satellite": {
@@ -47,7 +47,7 @@
                             "minimum": 0
                         },
 
-                        "i8pa": {
+                        "windSpeed": {
                             "type": "object",
                             "properties": {
                                 "pin": {
@@ -58,7 +58,7 @@
                             "required": [ "pin" ]
                         },
 
-                        "iev2": {
+                        "windDir": {
                             "type": "object",
                             "properties": {
                                 "pin": {
@@ -69,7 +69,7 @@
                             "required": [ "pin" ]
                         },
 
-                        "isds": {
+                        "sunDur": {
                             "type": "object",
                             "properties": {
                                 "pin": {
@@ -84,7 +84,7 @@
                     "required": [ "port" ]
                 },
 
-                "rr111": {
+                "rainfall": {
                     "type": "object",
                     "properties": {
                         "pin": {
@@ -113,6 +113,7 @@
         "errorLedPin",
         "clockTickPin",
         "position",
-        "sensors"
+        "sensors",
+        "uploader"
     ]
 }

@@ -50,12 +50,35 @@ namespace Aws.Core
         private readonly WindMonitor windMonitor = new WindMonitor();
 
         #region Sensors
-        private Mcp9808 mcp9808 = null;
+        /// <summary>
+        /// The air temperature sensor.
+        /// </summary>
+        private Mcp9808 airTempSensor = null;
+
+        /// <summary>
+        /// The BME680 sensor.
+        /// </summary>
         private Bme680 bme680 = null;
+
+        /// <summary>
+        /// The satellite device.
+        /// </summary>
         private Satellite satellite = null;
-        private DateTime? lastI8paSampleTime = null;
-        private RainwiseRainew111 rr111 = null;
-        private DateTime? lastRr111SampleTime = null;
+
+        /// <summary>
+        /// The time that the wind speed sensor was last sampled successfully.
+        /// </summary>
+        private DateTime? lastWindSpeedSampleTime = null;
+
+        /// <summary>
+        /// The rainfall sensor.
+        /// </summary>
+        private RainwiseRainew111 rainfallSensor = null;
+
+        /// <summary>
+        /// The time that <see cref="rainfallSensor"/> was last sampled successfully.
+        /// </summary>
+        private DateTime? lastRainfallSampleTime = null;
         #endregion
 
         /// <summary>
@@ -94,17 +117,17 @@ namespace Aws.Core
         {
             bool success = true;
 
-            if (config.IsSensorEnabled(AwsSensor.Mcp9808))
+            if (config.IsSensorEnabled(AwsSensor.AirTemperature))
             {
                 try
                 {
-                    mcp9808 = new Mcp9808();
-                    mcp9808.Open();
+                    airTempSensor = new Mcp9808();
+                    airTempSensor.Open();
                 }
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    LogEvent("Failed to open MCP9808 sensor");
+                    LogEvent("Failed to open airTemp sensor");
                     success = false;
                 }
             }
@@ -128,22 +151,22 @@ namespace Aws.Core
             {
                 SatelliteConfiguration satConfig = new SatelliteConfiguration();
 
-                if (config.IsSensorEnabled(AwsSensor.I8pa))
+                if (config.IsSensorEnabled(AwsSensor.WindSpeed))
                 {
                     satConfig.WindSpeedEnabled = true;
-                    satConfig.WindSpeedPin = (int)config.sensors.satellite.i8pa.pin;
+                    satConfig.WindSpeedPin = (int)config.sensors.satellite.windSpeed.pin;
                 }
 
-                if (config.IsSensorEnabled(AwsSensor.Iev2))
+                if (config.IsSensorEnabled(AwsSensor.WindDirection))
                 {
                     satConfig.WindDirectionEnabled = true;
-                    satConfig.WindDirectionPin = (int)config.sensors.satellite.iev2.pin;
+                    satConfig.WindDirectionPin = (int)config.sensors.satellite.windDir.pin;
                 }
 
-                if (config.IsSensorEnabled(AwsSensor.Isds))
+                if (config.IsSensorEnabled(AwsSensor.SunshineDuration))
                 {
                     satConfig.SunshineDurationEnabled = true;
-                    satConfig.SunshineDurationPin = (int)config.sensors.satellite.isds.pin;
+                    satConfig.SunshineDurationPin = (int)config.sensors.satellite.sunDur.pin;
                 }
 
                 try
@@ -159,17 +182,17 @@ namespace Aws.Core
                 }
             }
 
-            if (config.IsSensorEnabled(AwsSensor.Rr111))
+            if (config.IsSensorEnabled(AwsSensor.Rainfall))
             {
                 try
                 {
-                    rr111 = new RainwiseRainew111(gpio, (int)config.sensors.rr111.pin);
-                    rr111.Open();
+                    rainfallSensor = new RainwiseRainew111(gpio, (int)config.sensors.rainfall.pin);
+                    rainfallSensor.Open();
                 }
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    LogEvent("Failed to open RR111 sensor");
+                    LogEvent("Failed to open rainfall sensor");
                     success = false;
                 }
             }
@@ -230,9 +253,9 @@ namespace Aws.Core
         /// </param>
         private void Sample(DateTime time)
         {
-            if (config.IsSensorEnabled(AwsSensor.Mcp9808))
+            if (config.IsSensorEnabled(AwsSensor.AirTemperature))
             {
-                try { sampleCache.AirTemperature.Add(mcp9808.Sample()); }
+                try { sampleCache.AirTemperature.Add(airTempSensor.Sample()); }
                 catch { }
             }
 
@@ -255,14 +278,14 @@ namespace Aws.Core
 
                     if (sample.WindSpeed != null)
                     {
-                        if (lastI8paSampleTime != null &&
-                            lastI8paSampleTime == time - TimeSpan.FromSeconds(1))
+                        if (lastWindSpeedSampleTime != null &&
+                            lastWindSpeedSampleTime == time - TimeSpan.FromSeconds(1))
                         {
                             sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
-                                ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMsPerHz));
+                                ((int)sample.WindSpeed) * Inspeed8PulseAnemometer.WindSpeedMsPerHz));
                         }
 
-                        lastI8paSampleTime = time;
+                        lastWindSpeedSampleTime = time;
                     }
 
                     if (sample.WindDirection != null)
@@ -277,19 +300,19 @@ namespace Aws.Core
                 catch { }
             }
 
-            if (config.IsSensorEnabled(AwsSensor.Rr111))
+            if (config.IsSensorEnabled(AwsSensor.Rainfall))
             {
                 try
                 {
-                    double rainfall = rr111.Sample();
+                    double rainfall = rainfallSensor.Sample();
 
-                    if (lastRr111SampleTime != null &&
-                        lastRr111SampleTime == time - TimeSpan.FromSeconds(1))
+                    if (lastRainfallSampleTime != null &&
+                        lastRainfallSampleTime == time - TimeSpan.FromSeconds(1))
                     {
                         sampleCache.Rainfall.Add(rainfall);
                     }
 
-                    lastRr111SampleTime = time;
+                    lastRainfallSampleTime = time;
                 }
                 catch { }
             }

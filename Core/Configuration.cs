@@ -59,12 +59,12 @@ namespace Aws.Core
             {
                 var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
 
-                if (!satelliteDict.ContainsKey("i8pa") &&
-                    !satelliteDict.ContainsKey("i8pa") &&
-                    !satelliteDict.ContainsKey("i8pa"))
+                if (!satelliteDict.ContainsKey("windSpeed") &&
+                    !satelliteDict.ContainsKey("windDir") &&
+                    !satelliteDict.ContainsKey("sunDur"))
                 {
                     throw new ConfigurationSchemaException(
-                        "sensors.satellite must contain at least one of i8pa, iev2 or isds");
+                        "sensors.satellite must contain at least one of windSpeed, windDir or sunDur");
                 }
             }
 
@@ -92,41 +92,41 @@ namespace Aws.Core
 
             switch (sensor)
             {
-                case AwsSensor.Mcp9808:
-                    return sensorsDict.ContainsKey("mcp9808");
+                case AwsSensor.AirTemperature:
+                    return sensorsDict.ContainsKey("airTemp");
                 case AwsSensor.Bme680:
                     return sensorsDict.ContainsKey("bme680");
                 case AwsSensor.Satellite:
                     return sensorsDict.ContainsKey("satellite");
-                case AwsSensor.I8pa:
+                case AwsSensor.WindSpeed:
                     {
                         if (sensorsDict.ContainsKey("satellite"))
                         {
                             var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
-                            return satelliteDict.ContainsKey("i8pa");
+                            return satelliteDict.ContainsKey("windSpeed");
                         }
                         else return false;
                     }
-                case AwsSensor.Iev2:
+                case AwsSensor.WindDirection:
                     {
                         if (sensorsDict.ContainsKey("satellite"))
                         {
                             var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
-                            return satelliteDict.ContainsKey("iev2");
+                            return satelliteDict.ContainsKey("windDir");
                         }
                         else return false;
                     }
-                case AwsSensor.Isds:
+                case AwsSensor.SunshineDuration:
                     {
                         if (sensorsDict.ContainsKey("satellite"))
                         {
                             var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
-                            return satelliteDict.ContainsKey("isds");
+                            return satelliteDict.ContainsKey("sunDur");
                         }
                         else return false;
                     }
-                case AwsSensor.Rr111:
-                    return sensorsDict.ContainsKey("rr111");
+                case AwsSensor.Rainfall:
+                    return sensorsDict.ContainsKey("rainfall");
                 default: return false;
             }
         }
