@@ -43,17 +43,7 @@ namespace Aws.Core
         /// </summary>
         private SampleStore sampleStore = new SampleStore();
 
-        /// <summary>
-        /// Stores the past ten minutes of wind speed samples.
-        /// </summary>
-        private readonly List<KeyValuePair<DateTime, double>> windSpeed10MinStore
-            = new List<KeyValuePair<DateTime, double>>();
-
-        /// <summary>
-        /// Stores the past ten minutes of wind direction samples.
-        /// </summary>
-        private readonly List<KeyValuePair<DateTime, double>> windDirection10MinStore
-            = new List<KeyValuePair<DateTime, double>>();
+        private WindMonitor windMonitor = new WindMonitor();
 
         #region Sensors
         private Mcp9808 mcp9808 = null;
@@ -282,7 +272,7 @@ namespace Aws.Core
             SampleStore samples = sampleStore;
             sampleStore = new SampleStore();
 
-            UpdateWindStores(time, samples);
+            windMonitor.CacheSamples(time, samples.WindSpeed, samples.WindDirection);
 
             Report report = GenerateReport(time, samples);
             Database.WriteReport(report, DatabaseFile.Data);
@@ -316,7 +306,7 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Produces a report from the samples in a sample store and the ten minute wind stores.
+        /// Produces a report from the samples in a sample store and the wind monitor.
         /// </summary>
         /// <param name="time">
         /// The time of the report.
@@ -340,7 +330,7 @@ namespace Aws.Core
             // Need at least 10 minutes of wind data
             if (time >= startTime + TimeSpan.FromMinutes(10))
             {
-                (double?, double?, double?) windValues = CalculateWindValues(time);
+                (double?, double?, double?) windValues = windMonitor.CalculateSummaryValues();
 
                 if (windValues.Item1 != null)
                     report.WindSpeed = Math.Round((double)windValues.Item1, 1);
@@ -350,12 +340,8 @@ namespace Aws.Core
                     report.WindGust = Math.Round((double)windValues.Item3, 1);
             }
 
-            if ((bool)config.sensors.rr111.enabled)
-            {
-                if (samples.Rainfall.Count > 0)
-                    report.Rainfall = samples.Rainfall.Sum();
-                else report.Rainfall = 0;
-            }
+            if (samples.Rainfall.Count > 0)
+                report.Rainfall = samples.Rainfall.Sum();
 
             if (samples.SunshineDuration.Count > 0)
                 report.SunshineDuration = samples.SunshineDuration.Count(s => s);
@@ -380,97 +366,6 @@ namespace Aws.Core
             }
 
             return report;
-        }
-
-        /// <summary>
-        /// Copies wind speed and direction samples from a sample store to the ten-minute wind stores and removes
-        /// samples older than ten minutes from the ten-minute wind stores.
-        /// </summary>
-        /// <param name="tenMinuteEnd">
-        /// The end of the ten-minute period.
-        /// </param>
-        /// <param name="store">
-        /// A sample store containing the samples.
-        /// </param>
-        private void UpdateWindStores(DateTime tenMinuteEnd, SampleStore store)
-        {
-            DateTime tenMinuteStart = tenMinuteEnd - TimeSpan.FromMinutes(10);
-
-            if ((bool)config.sensors.satellite.i8pa.enabled)
-            {
-                windSpeed10MinStore.AddRange(store.WindSpeed);
-                windSpeed10MinStore.RemoveAll(sample => sample.Key <= tenMinuteStart);
-            }
-
-            if ((bool)config.sensors.satellite.iev2.enabled)
-            {
-                windDirection10MinStore.AddRange(store.WindDirection);
-                windDirection10MinStore.RemoveAll(sample => sample.Key <= tenMinuteStart);
-            }
-        }
-
-        /// <summary>
-        /// Calculates average wind speed and direction, and maximum 3-second wind gust, from the samples in the 
-        /// ten-minute wind stores.
-        /// </summary>
-        /// <param name="tenMinuteEnd">
-        /// The end of the ten-minute period.
-        /// </param>
-        /// <returns>
-        /// A tuple containing wind speed, direction and gust.
-        /// </returns>
-        private (double?, double?, double?) CalculateWindValues(DateTime tenMinuteEnd)
-        {
-            double? windSpeed = null;
-            if (windSpeed10MinStore.Count > 0)
-                windSpeed = windSpeed10MinStore.Average(x => x.Value);
-
-            double? windDirection = null;
-            if (windSpeed != null && windSpeed > 0 && windDirection10MinStore.Count > 0)
-            {
-                List<Vector> vectors = new List<Vector>();
-
-                // Create a vector (speed and direction pair) for each second in the 10-minute period
-                for (DateTime i = tenMinuteEnd - TimeSpan.FromSeconds(599);
-                    i <= tenMinuteEnd; i += TimeSpan.FromSeconds(1))
-                {
-                    if (windSpeed10MinStore.Any(sample => sample.Key == i) &&
-                        windDirection10MinStore.Any(sample => sample.Key == i))
-                    {
-                        double magnitude = windSpeed10MinStore.Single(sample => sample.Key == i).Value;
-                        double direction = windDirection10MinStore.Single(sample => sample.Key == i).Value;
-                        vectors.Add(new Vector(magnitude, direction));
-                    }
-                }
-
-                if (vectors.Count > 0)
-                    windDirection = Helpers.VectorDirectionAverage(vectors);
-            }
-
-            double? windGust = null;
-            if (windSpeed10MinStore.Count > 0)
-            {
-                windGust = 0;
-
-                // Find the highest 3-second average wind speed in the stored data. A 3-second average
-                // includes the samples <= second T and > T-3
-                for (DateTime i = tenMinuteEnd - TimeSpan.FromMinutes(10);
-                    i <= tenMinuteEnd - TimeSpan.FromSeconds(3); i += TimeSpan.FromSeconds(1))
-                {
-                    IEnumerable<KeyValuePair<DateTime, double>> gustSamples = windSpeed10MinStore
-                        .Where(x => x.Key > i && x.Key <= i + TimeSpan.FromSeconds(3));
-
-                    if (gustSamples.Count() > 0)
-                    {
-                        double gustSample = gustSamples.Average(x => x.Value);
-
-                        if (gustSample > windGust)
-                            windGust = gustSample;
-                    }
-                }
-            }
-
-            return (windSpeed, windDirection, windGust);
         }
     }
 }

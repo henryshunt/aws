@@ -29,6 +29,32 @@ namespace Aws.Routines
             Console.WriteLine(exception.ToString());
         }
 
+        public static double CalculateDewPoint(double temperature, double humidity)
+        {
+            double ea = (8.082 - temperature / 556.0) * temperature;
+            double e = 0.4343 * Math.Log(humidity / 100) + ea / (256.1 + temperature);
+            double sr = Math.Sqrt(Math.Pow(8.0813 - e, 2) - (1.842 * e));
+            return 278.04 * (8.0813 - e - sr);
+        }
+
+        // Formula from https://keisan.casio.com/exec/system/1224575267
+        public static double CalculateMslp(double stationPres, double airTemp, double elevation)
+        {
+            double x = (0.0065 * elevation)
+                / (airTemp + (0.0065 * elevation) + 273.15);
+
+            return stationPres * Math.Pow(1 - x, -5.257);
+        }
+
+        /// <summary>
+        /// Calculates the average direction of a list of vectors.
+        /// </summary>
+        /// <param name="vectors">
+        /// The list of vectors.
+        /// </param>
+        /// <returns>
+        /// The average direction of the list of vectors.
+        /// </returns>
         public static double VectorDirectionAverage(List<Vector> vectors)
         {
             if (vectors.Count == 0)
@@ -47,25 +73,7 @@ namespace Aws.Routines
             double northAverage = north.Sum() / vectors.Count;
 
             double direction = Math.Atan2(eastAverage, northAverage) * 180 / Math.PI;
-            direction = (360 + direction) % 360;
-            return direction;
-        }
-
-        public static double CalculateDewPoint(double temperature, double humidity)
-        {
-            double ea = (8.082 - temperature / 556.0) * temperature;
-            double e = 0.4343 * Math.Log(humidity / 100) + ea / (256.1 + temperature);
-            double sr = Math.Sqrt(Math.Pow(8.0813 - e, 2) - (1.842 * e));
-            return 278.04 * (8.0813 - e - sr);
-        }
-
-        // Formula from https://keisan.casio.com/exec/system/1224575267
-        public static double CalculateMslp(double stationPres, double airTemp, double elevation)
-        {
-            double x = (0.0065 * elevation)
-                / (airTemp + (0.0065 * elevation) + 273.15);
-
-            return stationPres * Math.Pow(1 - x, -5.257);
+            return (360 + direction) % 360;
         }
     }
 }
