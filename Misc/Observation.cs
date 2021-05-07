@@ -2,10 +2,10 @@
 
 namespace Aws.Misc
 {
-    public class Report
+    public class Observation
     {
         /// <summary>
-        /// The time of the report.
+        /// The time of the observation.
         /// </summary>
         public DateTime Time { get; set; }
 
@@ -60,12 +60,12 @@ namespace Aws.Misc
         public double? MslPressure { get; set; } = null;
 
         /// <summary>
-        /// Initialises a new instance of the <see cref="Report"/> class.
+        /// Initialises a new instance of the <see cref="Observation"/> class.
         /// </summary>
         /// <param name="time">
-        /// The time of the report.
+        /// The time of the observation.
         /// </param>
-        public Report(DateTime time)
+        public Observation(DateTime time)
         {
             Time = time;
         }

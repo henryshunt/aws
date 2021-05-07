@@ -63,7 +63,7 @@ namespace Aws.Misc
             string path = database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE;
             File.WriteAllBytes(path, new byte[0]);
 
-            const string reportsSql = "CREATE TABLE reports (" +
+            const string observationsSql = "CREATE TABLE observations (" +
                 "time TEXT PRIMARY KEY NOT NULL, airTemp REAL, relHum REAL, dewPoint REAL, " +
                 "windSpeed REAL, windDir INTEGER, windGust REAL, rainfall REAL, sunDur INTEGER, " +
                 "staPres REAL, mslPres REAL)";
@@ -83,23 +83,23 @@ namespace Aws.Misc
             using (SqliteConnection connection = Connect(database))
             {
                 connection.Open();
-                new SqliteCommand(reportsSql, connection).ExecuteNonQuery();
+                new SqliteCommand(observationsSql, connection).ExecuteNonQuery();
                 new SqliteCommand(dayStatsSql, connection).ExecuteNonQuery();
             }
         }
 
         /// <summary>
-        /// Inserts a report into a database.
+        /// Inserts an observation into a database.
         /// </summary>
-        /// <param name="report">
-        /// The report to insert.
+        /// <param name="observation">
+        /// The observation to insert.
         /// </param>
         /// <param name="database">
-        /// The database to insert the report into.
+        /// The database to insert the observation into.
         /// </param>
-        public static void WriteReport(Report report, DatabaseFile database)
+        public static void WriteObservation(Observation observation, DatabaseFile database)
         {
-            const string sql = "INSERT INTO reports VALUES (@time, @airTemp, @relHum, @dewPoint, " +
+            const string sql = "INSERT INTO observations VALUES (@time, @airTemp, @relHum, @dewPoint, " +
                 "@windSpeed, @windDir, @windGust, @rainfall, @sunDur, @staPres, @mslPres)";
 
             using (SqliteConnection connection = Connect(database))
@@ -108,27 +108,27 @@ namespace Aws.Misc
                 SqliteCommand query = new SqliteCommand(sql, connection);
 
                 query.Parameters.AddWithValue("@time",
-                    report.Time.ToString("yyyy-MM-dd HH:mm:ss"));
+                    observation.Time.ToString("yyyy-MM-dd HH:mm:ss"));
                 query.Parameters.AddWithValue("@airTemp",
-                    report.AirTemperature != null ? report.AirTemperature : DBNull.Value);
+                    observation.AirTemperature != null ? observation.AirTemperature : DBNull.Value);
                 query.Parameters.AddWithValue("@relHum",
-                    report.RelativeHumidity != null ? report.RelativeHumidity : DBNull.Value);
+                    observation.RelativeHumidity != null ? observation.RelativeHumidity : DBNull.Value);
                 query.Parameters.AddWithValue("@dewPoint",
-                    report.DewPoint != null ? report.DewPoint : DBNull.Value);
+                    observation.DewPoint != null ? observation.DewPoint : DBNull.Value);
                 query.Parameters.AddWithValue("@windSpeed",
-                    report.WindSpeed != null ? report.WindSpeed : DBNull.Value);
+                    observation.WindSpeed != null ? observation.WindSpeed : DBNull.Value);
                 query.Parameters.AddWithValue("@windDir",
-                    report.WindDirection != null ? report.WindDirection : DBNull.Value);
+                    observation.WindDirection != null ? observation.WindDirection : DBNull.Value);
                 query.Parameters.AddWithValue("@windGust",
-                    report.WindGust != null ? report.WindGust : DBNull.Value);
+                    observation.WindGust != null ? observation.WindGust : DBNull.Value);
                 query.Parameters.AddWithValue("@rainfall",
-                    report.Rainfall != null ? report.Rainfall : DBNull.Value);
+                    observation.Rainfall != null ? observation.Rainfall : DBNull.Value);
                 query.Parameters.AddWithValue("@sunDur",
-                    report.SunshineDuration != null ? report.SunshineDuration : DBNull.Value);
+                    observation.SunshineDuration != null ? observation.SunshineDuration : DBNull.Value);
                 query.Parameters.AddWithValue("@staPres",
-                    report.StationPressure != null ? report.StationPressure : DBNull.Value);
+                    observation.StationPressure != null ? observation.StationPressure : DBNull.Value);
                 query.Parameters.AddWithValue("@mslPres",
-                    report.MslPressure != null ? report.MslPressure : DBNull.Value);
+                    observation.MslPressure != null ? observation.MslPressure : DBNull.Value);
 
                 query.ExecuteNonQuery();
             }
@@ -165,7 +165,7 @@ namespace Aws.Misc
                 "SUM(rainfall) AS rainfallTtl, SUM(sunDur) AS sunDurTtl, " +
                 "ROUND(AVG(mslPres), 1) AS mslPresAvg, " +
                 "MIN(mslPres) AS mslPresMin, MAX(mslPres) AS mslPresMax " +
-                "FROM reports WHERE time BETWEEN @start AND @end";
+                "FROM observations WHERE time BETWEEN @start AND @end";
 
             using (SqliteConnection connection = Connect(DatabaseFile.Data))
             {
@@ -224,7 +224,7 @@ namespace Aws.Misc
         private static int? CalculateAverageWindDirection(DateTime start, DateTime end)
         {
             const string sql = "SELECT time, windSpeed, windDir " +
-                "FROM reports WHERE time BETWEEN @start AND @end";
+                "FROM observations WHERE time BETWEEN @start AND @end";
 
             using (SqliteConnection connection = Connect(DatabaseFile.Data))
             {

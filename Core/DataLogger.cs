@@ -40,7 +40,7 @@ namespace Aws.Core
         private DateTime startTime;
 
         /// <summary>
-        /// Caches sensor samples taken between the previous and next reports (a duration of one minute).
+        /// Caches sensor samples taken between the previous and next observation (a duration of one minute).
         /// </summary>
         private SampleCache sampleCache = new SampleCache();
 
@@ -82,7 +82,7 @@ namespace Aws.Core
         #endregion
 
         /// <summary>
-        /// Occurs when a new report is successfully logged to the database. Always occurs on a new thread.
+        /// Occurs when a new observation is successfully logged to the database. Always occurs on a new thread.
         /// </summary>
         public event EventHandler<DataLoggerEventArgs> DataLogged;
 
@@ -319,7 +319,7 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// The logging routine. Produces and logs a report, and generates and logs statistics.
+        /// The logging routine. Produces and logs an observation, and generates and logs statistics.
         /// </summary>
         /// <param name="time">
         /// The current time.
@@ -331,14 +331,14 @@ namespace Aws.Core
 
             windMonitor.CacheSamples(time, samples.WindSpeed, samples.WindDirection);
 
-            Report report = GenerateReport(time, samples);
-            Database.WriteReport(report, DatabaseFile.Data);
+            Observation observation = GenerateObservation(time, samples);
+            Database.WriteObservation(observation, DatabaseFile.Data);
 
             if ((bool)config.uploader.upload)
-                Database.WriteReport(report, DatabaseFile.Upload);
+                Database.WriteObservation(observation, DatabaseFile.Upload);
 
             // At start of new day, recalculate previous day's statistics because it needs to
-            // include the data reported at 00:00:00 of the new day
+            // include the data observed at 00:00:00 of the new day
             if (time.Hour == 0 && time.Minute == 0)
             {
                 DateTime local2 = TimeZoneInfo.ConvertTimeFromUtc(time - new TimeSpan(0, 1, 0),
@@ -361,26 +361,26 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Produces a report from the samples in a sample cache and the wind monitor.
+        /// Produces an observation from the samples in a sample cache and the wind monitor.
         /// </summary>
         /// <param name="time">
         /// The current time.
         /// </param>
         /// <param name="samples">
-        /// A sample cache containing the samples to produce the report for.
+        /// A sample cache containing the samples to produce the observation for.
         /// </param>
         /// <returns>
-        /// The produced report.
+        /// The produced observation.
         /// </returns>
-        private Report GenerateReport(DateTime time, SampleCache samples)
+        private Observation GenerateObservation(DateTime time, SampleCache samples)
         {
-            Report report = new Report(time);
+            Observation observation = new Observation(time);
 
             if (samples.AirTemperature.Count > 0)
-                report.AirTemperature = Math.Round(samples.AirTemperature.Average(), 1);
+                observation.AirTemperature = Math.Round(samples.AirTemperature.Average(), 1);
 
             if (samples.RelativeHumidity.Count > 0)
-                report.RelativeHumidity = Math.Round(samples.RelativeHumidity.Average(), 1);
+                observation.RelativeHumidity = Math.Round(samples.RelativeHumidity.Average(), 1);
 
             // Need at least 10 minutes of wind data
             if (time >= startTime + TimeSpan.FromMinutes(10))
@@ -388,39 +388,39 @@ namespace Aws.Core
                 (double?, double?, double?) windValues = windMonitor.CalculateSummaryValues();
 
                 if (windValues.Item1 != null)
-                    report.WindSpeed = Math.Round((double)windValues.Item1, 1);
-                if (windValues.Item2 != null && report.WindSpeed != null && report.WindSpeed > 0)
-                    report.WindDirection = (int)Math.Round((double)windValues.Item2, 0) % 360;
+                    observation.WindSpeed = Math.Round((double)windValues.Item1, 1);
+                if (windValues.Item2 != null && observation.WindSpeed != null && observation.WindSpeed > 0)
+                    observation.WindDirection = (int)Math.Round((double)windValues.Item2, 0) % 360;
                 if (windValues.Item3 != null)
-                    report.WindGust = Math.Round((double)windValues.Item3, 1);
+                    observation.WindGust = Math.Round((double)windValues.Item3, 1);
             }
 
             if (samples.Rainfall.Count > 0)
-                report.Rainfall = samples.Rainfall.Sum();
+                observation.Rainfall = samples.Rainfall.Sum();
 
             if (samples.SunshineDuration.Count > 0)
-                report.SunshineDuration = samples.SunshineDuration.Count(s => s);
+                observation.SunshineDuration = samples.SunshineDuration.Count(s => s);
 
             if (samples.StationPressure.Count > 0)
-                report.StationPressure = Math.Round(samples.StationPressure.Average(), 1);
+                observation.StationPressure = Math.Round(samples.StationPressure.Average(), 1);
 
-            if (report.AirTemperature != null && report.RelativeHumidity != null)
+            if (observation.AirTemperature != null && observation.RelativeHumidity != null)
             {
-                double dewPoint = CalculateDewPoint((double)report.AirTemperature,
-                    (double)report.RelativeHumidity);
+                double dewPoint = CalculateDewPoint((double)observation.AirTemperature,
+                    (double)observation.RelativeHumidity);
 
-                report.DewPoint = Math.Round(dewPoint, 1);
+                observation.DewPoint = Math.Round(dewPoint, 1);
             }
 
-            if (report.StationPressure != null && report.AirTemperature != null)
+            if (observation.StationPressure != null && observation.AirTemperature != null)
             {
-                double mslp = CalculateMslp((double)report.StationPressure,
-                    (double)report.AirTemperature, (double)config.position.elevation);
+                double mslp = CalculateMslp((double)observation.StationPressure,
+                    (double)observation.AirTemperature, (double)config.position.elevation);
 
-                report.MslPressure = Math.Round(mslp, 1);
+                observation.MslPressure = Math.Round(mslp, 1);
             }
 
-            return report;
+            return observation;
         }
     }
 }
