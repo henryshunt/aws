@@ -28,6 +28,11 @@ namespace Aws.Core
         private DateTime lastCacheTime;
 
         /// <summary>
+        /// Initialises a new instance of the <see cref="WindMonitor"/> class.
+        /// </summary>
+        public WindMonitor() { }
+
+        /// <summary>
         /// Caches new samples and removes any samples that are ten minutes old or older from the cache.
         /// </summary>
         /// <param name="time">

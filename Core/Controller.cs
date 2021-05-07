@@ -81,7 +81,17 @@ namespace Aws.Core
 
             dataLogger = new DataLogger(config, clock, gpio);
             dataLogger.DataLogged += DataLogger_DataLogged;
-            dataLogger.Open();
+
+            if (!dataLogger.Open())
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    Thread.Sleep(250);
+                    gpio.Write(config.errorLedPin, PinValue.Low);
+                    Thread.Sleep(250);
+                }
+            }
 
             Thread.Sleep(1500);
             gpio.Write(config.dataLedPin, PinValue.High);

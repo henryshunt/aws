@@ -21,7 +21,7 @@ namespace Aws.Core
         /// <summary>
         /// The clock.
         /// </summary>
-        private Clock clock;
+        private readonly Clock clock;
 
         /// <summary>
         /// The GPIO controller.
@@ -39,10 +39,13 @@ namespace Aws.Core
         private DateTime startTime;
 
         /// <summary>
-        /// Stores the sensor samples taken between the previous and next reports (a duration of one minute).
+        /// Caches sensor samples taken between the previous and next reports (a duration of one minute).
         /// </summary>
-        private SampleStore sampleStore = new SampleStore();
+        private SampleCache sampleCache = new SampleCache();
 
+        /// <summary>
+        /// Caches the past ten minutes of wind samples.
+        /// </summary>
         private WindMonitor windMonitor = new WindMonitor();
 
         #region Sensors
@@ -52,6 +55,9 @@ namespace Aws.Core
         private RainwiseRainew111 rr111 = null;
         #endregion
 
+        /// <summary>
+        /// Occurs when a new report is successfully logged to the database. Always occurs on a new thread.
+        /// </summary>
         public event EventHandler<DataLoggerEventArgs> DataLogged;
 
         /// <summary>
@@ -61,7 +67,7 @@ namespace Aws.Core
         /// The configuration data.
         /// </param>
         /// <param name="clock">
-        /// The clock. When the clock is started, the data logger will start operating.
+        /// The clock. The data logger will start operating when the clock is started.
         /// </param>
         /// <param name="gpio">
         /// The GPIO controller.
@@ -76,9 +82,12 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Opens a connection to the sensors enabled in the configuration.
+        /// Opens a connection to each of the sensors enabled in the configuration.
         /// </summary>
-        public void Open()
+        /// <returns>
+        /// <see langword="false"/> if any of the sensors failed to open, otherwise <see langword="true"/>.
+        /// </returns>
+        public bool Open()
         {
             bool success = true;
 
@@ -120,20 +129,20 @@ namespace Aws.Core
 
                 if ((bool)config.sensors.satellite.i8pa.enabled)
                 {
-                    satConfig.I8paEnabled = true;
-                    satConfig.I8paPin = (int)config.sensors.satellite.i8pa.pin;
+                    satConfig.WindSpeedEnabled = true;
+                    satConfig.WindSpeedPin = (int)config.sensors.satellite.i8pa.pin;
                 }
 
                 if ((bool)config.sensors.satellite.iev2.enabled)
                 {
-                    satConfig.Iev2Enabled = true;
-                    satConfig.Iev2Pin = (int)config.sensors.satellite.iev2.pin;
+                    satConfig.WindDirectionEnabled = true;
+                    satConfig.WindDirectionPin = (int)config.sensors.satellite.iev2.pin;
                 }
 
                 if ((bool)config.sensors.satellite.isds.enabled)
                 {
-                    satConfig.IsdsEnabled = true;
-                    satConfig.IsdsPin = (int)config.sensors.satellite.isds.pin;
+                    satConfig.SunshineDurationEnabled = true;
+                    satConfig.SunshineDurationPin = (int)config.sensors.satellite.isds.pin;
                 }
 
                 try
@@ -164,16 +173,7 @@ namespace Aws.Core
                 }
             }
 
-            if (!success)
-            {
-                for (int i = 0; i < 5; i++)
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    Thread.Sleep(250);
-                    gpio.Write(config.errorLedPin, PinValue.Low);
-                    Thread.Sleep(250);
-                }
-            }
+            return success;
         }
 
         public void Clock_Ticked(object sender, ClockTickedEventArgs e)
@@ -200,39 +200,44 @@ namespace Aws.Core
 
             if (e.Time.Second == 0)
             {
-                try
+                // New thread allows further sampling to continue in the background
+                new Thread(() =>
                 {
-                    // New thread allows further sampling to continue in the background
-                    new Thread(() =>
+                    gpio.Write(config.errorLedPin, PinValue.Low);
+
+                    try { Log(e.Time); }
+                    catch (Exception ex)
                     {
-                        Log(e.Time);
-                        DataLogged?.Invoke(this, new DataLoggerEventArgs(e.Time));
-                    }).Start();
-                }
-                catch (Exception ex)
-                {
-                    Helpers.LogException(ex);
-                }
+                        gpio.Write(config.errorLedPin, PinValue.High);
+                        Helpers.LogException(ex);
+                        return;
+                    }
+
+                    gpio.Write(config.dataLedPin, PinValue.High);
+                    Thread.Sleep(1500);
+                    gpio.Write(config.dataLedPin, PinValue.Low);
+
+                    DataLogged?.Invoke(this, new DataLoggerEventArgs(e.Time));
+                }).Start();
             }
         }
 
         /// <summary>
-        /// Samples each of the sensors enabled in the configuration and stores the values in
-        /// <see cref="sampleStore"/>.
+        /// Samples each of the sensors and stores the values in <see cref="sampleCache"/>.
         /// </summary>
         /// <param name="time">
-        /// The time of the sample.
+        /// The current time.
         /// </param>
         private void Sample(DateTime time)
         {
             if ((bool)config.sensors.mcp9808.enabled)
-                sampleStore.AirTemperature.Add(mcp9808.Sample());
+                sampleCache.AirTemperature.Add(mcp9808.Sample());
 
             if ((bool)config.sensors.bme680.enabled)
             {
                 Tuple<double, double, double> sample = bme680.Sample();
-                sampleStore.RelativeHumidity.Add(sample.Item2);
-                sampleStore.StationPressure.Add(sample.Item3);
+                sampleCache.RelativeHumidity.Add(sample.Item2);
+                sampleCache.StationPressure.Add(sample.Item3);
             }
 
             if ((bool)config.sensors.satellite.enabled)
@@ -241,36 +246,34 @@ namespace Aws.Core
 
                 if (sample.WindSpeed != null)
                 {
-                    sampleStore.WindSpeed.Add(new KeyValuePair<DateTime, double>(
-                        time, ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMphPerHz));
+                    sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
+                        ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMphPerHz));
                 }
 
                 if (sample.WindDirection != null)
                 {
-                    sampleStore.WindDirection.Add(new KeyValuePair<DateTime, double>(
+                    sampleCache.WindDirection.Add(new KeyValuePair<DateTime, double>(
                         time, (double)sample.WindDirection));
                 }
 
                 if (sample.SunshineDuration != null)
-                    sampleStore.SunshineDuration.Add((bool)sample.SunshineDuration);
+                    sampleCache.SunshineDuration.Add((bool)sample.SunshineDuration);
             }
 
             if ((bool)config.sensors.rr111.enabled)
-                sampleStore.Rainfall.Add(rr111.Sample());
+                sampleCache.Rainfall.Add(rr111.Sample());
         }
 
         /// <summary>
-        /// The logging routine, which produces and logs a report, and generates and logs statistics.
+        /// The logging routine. Produces and logs a report, and generates and logs statistics.
         /// </summary>
         /// <param name="time">
-        /// The time of the report.
+        /// The current time.
         /// </param>
         private void Log(DateTime time)
         {
-            gpio.Write(config.errorLedPin, PinValue.Low);
-
-            SampleStore samples = sampleStore;
-            sampleStore = new SampleStore();
+            SampleCache samples = sampleCache;
+            sampleCache = new SampleCache();
 
             windMonitor.CacheSamples(time, samples.WindSpeed, samples.WindDirection);
 
@@ -299,25 +302,21 @@ namespace Aws.Core
 
             if ((bool)config.transmitter.transmit)
                 Database.WriteDailyStatistic(statistic, DatabaseFile.Transmit);
-
-            gpio.Write(config.dataLedPin, PinValue.High);
-            Thread.Sleep(1500);
-            gpio.Write(config.dataLedPin, PinValue.Low);
         }
 
         /// <summary>
-        /// Produces a report from the samples in a sample store and the wind monitor.
+        /// Produces a report from the samples in a sample cache and the wind monitor.
         /// </summary>
         /// <param name="time">
-        /// The time of the report.
+        /// The current time.
         /// </param>
         /// <param name="samples">
-        /// A sample store containing the data to produce the report for.
+        /// A sample cache containing the samples to produce the report for.
         /// </param>
         /// <returns>
         /// The produced report.
         /// </returns>
-        private Report GenerateReport(DateTime time, SampleStore samples)
+        private Report GenerateReport(DateTime time, SampleCache samples)
         {
             Report report = new Report(time);
 

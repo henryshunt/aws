@@ -2,26 +2,28 @@
 {
     internal class SatelliteConfiguration
     {
-        public bool I8paEnabled { get; set; } = false;
-        public int I8paPin { get; set; }
-        public bool Iev2Enabled { get; set; } = false;
-        public int Iev2Pin { get; set; }
-        public bool IsdsEnabled { get; set; } = false;
-        public int IsdsPin { get; set; }
+        public bool WindSpeedEnabled { get; set; } = false;
+        public int WindSpeedPin { get; set; }
+        public bool WindDirectionEnabled { get; set; } = false;
+        public int WindDirectionPin { get; set; }
+        public bool SunshineDurationEnabled { get; set; } = false;
+        public int SunshineDurationPin { get; set; }
 
         public override string ToString()
         {
-            string result = "{\"windSpeedEnabled\":" + I8paEnabled.ToString().ToLower();
-            if (I8paEnabled)
-                result += ",\"windSpeedPin\":" + I8paPin.ToString().ToLower();
+            string result = "{";
 
-            result += ",\"windDirEnabled\":" + Iev2Enabled.ToString().ToLower();
-            if (Iev2Enabled)
-                result += ",\"windDirPin\":" + Iev2Pin.ToString().ToLower();
+            result += "\"windSpeedEnabled\":" + WindSpeedEnabled.ToString().ToLower();
+            if (WindSpeedEnabled)
+                result += ",\"windSpeedPin\":" + WindSpeedPin.ToString().ToLower();
 
-            result += ",\"sunDurEnabled\":" + IsdsEnabled.ToString().ToLower();
-            if (IsdsEnabled)
-                result += ",\"sunDurPin\":" + IsdsPin.ToString().ToLower();
+            result += ",\"windDirEnabled\":" + WindDirectionEnabled.ToString().ToLower();
+            if (WindDirectionEnabled)
+                result += ",\"windDirPin\":" + WindDirectionPin.ToString().ToLower();
+
+            result += ",\"sunDurEnabled\":" + SunshineDurationEnabled.ToString().ToLower();
+            if (SunshineDurationEnabled)
+                result += ",\"sunDurPin\":" + SunshineDurationPin.ToString().ToLower();
 
             return result + "}";
         }
