@@ -47,7 +47,7 @@ namespace Aws.Core
         /// <summary>
         /// Caches the past ten minutes of wind samples.
         /// </summary>
-        private WindMonitor windMonitor = new WindMonitor();
+        private readonly WindMonitor windMonitor = new WindMonitor();
 
         #region Sensors
         private Mcp9808 mcp9808 = null;
