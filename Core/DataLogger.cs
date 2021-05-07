@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Device.Gpio;
 using System.Linq;
 using System.Threading;
+using static Aws.Misc.Utilities2;
 
 namespace Aws.Core
 {
@@ -101,7 +102,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Utilities.LogEvent("Failed to open MCP9808 sensor");
+                    LogEvent("Failed to open MCP9808 sensor");
                     success = false;
                 }
             }
@@ -116,7 +117,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Utilities.LogEvent("Failed to open BME680 sensor");
+                    LogEvent("Failed to open BME680 sensor");
                     success = false;
                 }
             }
@@ -153,7 +154,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Utilities.LogEvent("Failed to open satellite sensor");
+                    LogEvent("Failed to open satellite sensor");
                     success = false;
                 }
             }
@@ -168,7 +169,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    Utilities.LogEvent("Failed to open RR111 sensor");
+                    LogEvent("Failed to open RR111 sensor");
                     success = false;
                 }
             }
@@ -209,7 +210,7 @@ namespace Aws.Core
                     catch (Exception ex)
                     {
                         gpio.Write(config.errorLedPin, PinValue.High);
-                        Utilities.LogException(ex);
+                        LogException(ex);
                         return;
                     }
 
@@ -350,15 +351,15 @@ namespace Aws.Core
 
             if (report.AirTemperature != null && report.RelativeHumidity != null)
             {
-                double dewPoint = Utilities.CalculateDewPoint(
-                    (double)report.AirTemperature, (double)report.RelativeHumidity);
+                double dewPoint = CalculateDewPoint((double)report.AirTemperature,
+                    (double)report.RelativeHumidity);
 
                 report.DewPoint = Math.Round(dewPoint, 1);
             }
 
             if (report.StationPressure != null && report.AirTemperature != null)
             {
-                double mslp = Utilities.CalculateMslp((double)report.StationPressure,
+                double mslp = CalculateMslp((double)report.StationPressure,
                     (double)report.AirTemperature, (double)config.position.elevation);
 
                 report.MslPressure = Math.Round(mslp, 1);

@@ -1,5 +1,4 @@
-﻿using Aws.Misc;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using NJsonSchema;
 using NJsonSchema.Validation;
 using System;
@@ -7,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using static Aws.Misc.Utilities2;
 
 namespace Aws.Core
 {
@@ -36,7 +36,7 @@ namespace Aws.Core
         /// </exception>
         public async Task LoadAsync()
         {
-            string json = File.ReadAllText(Utilities.CONFIG_FILE);
+            string json = File.ReadAllText(CONFIG_FILE);
 
             JsonSchema schema =
                 await JsonSchema.FromFileAsync("Resources/ConfigurationSchema.json");

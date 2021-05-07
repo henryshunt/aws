@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using static Aws.Misc.Utilities2;
 
 namespace Aws.Misc
 {
@@ -13,12 +14,12 @@ namespace Aws.Misc
         /// <summary>
         /// The path to the SQLite database file that stores logged data.
         /// </summary>
-        private static string DATA_FILE = Utilities.DATA_DIRECTORY + "data.sq3";
+        private static string DATA_FILE = DATA_DIRECTORY + "data.sq3";
 
         /// <summary>
         /// The path to the SQLite database file that stores data for transmission.
         /// </summary>
-        private static string TRANSMIT_FILE = Utilities.DATA_DIRECTORY + "transmit.sq3";
+        private static string TRANSMIT_FILE = DATA_DIRECTORY + "transmit.sq3";
 
         /// <summary>
         /// Determines whether a database exists.
@@ -245,7 +246,7 @@ namespace Aws.Misc
                     }
 
                     if (vectors.Count > 0)
-                        return (int)(Math.Round(Utilities.VectorDirectionAverage(vectors)) % 360);
+                        return (int)(Math.Round(VectorDirectionAverage(vectors)) % 360);
                     else return null;
                 }
             }

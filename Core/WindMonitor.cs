@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static Aws.Misc.Utilities2;
 
 namespace Aws.Core
 {
@@ -91,7 +92,7 @@ namespace Aws.Core
                 }
 
                 if (vectors.Count > 0)
-                    windDirection = Utilities.VectorDirectionAverage(vectors);
+                    windDirection = VectorDirectionAverage(vectors);
             }
 
             double? windGust = null;
