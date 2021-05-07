@@ -1,4 +1,4 @@
-﻿using Aws.Routines;
+﻿using Aws.Misc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -91,7 +91,7 @@ namespace Aws.Core
                 }
 
                 if (vectors.Count > 0)
-                    windDirection = Helpers.VectorDirectionAverage(vectors);
+                    windDirection = Utilities.VectorDirectionAverage(vectors);
             }
 
             double? windGust = null;

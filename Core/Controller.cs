@@ -1,4 +1,4 @@
-﻿using Aws.Routines;
+﻿using Aws.Misc;
 using System;
 using System.Device.Gpio;
 using System.IO;
@@ -39,12 +39,12 @@ namespace Aws.Core
         /// </summary>
         public async Task Startup()
         {
-            Helpers.LogEvent("Startup ------------");
+            Utilities.LogEvent("Startup ------------");
 
             try { await config.LoadAsync(); }
             catch (Exception ex)
             {
-                Helpers.LogException(ex);
+                Utilities.LogException(ex);
                 return;
             }
 
@@ -66,13 +66,13 @@ namespace Aws.Core
                 //    return;
                 //}
 
-                Helpers.LogEvent("Clock time is " +
+                Utilities.LogEvent("Clock time is " +
                     clock.DateTime.ToString("yyyy-MM-dd HH:mm:ss"));
             }
             catch (Exception ex)
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogException(ex);
+                Utilities.LogException(ex);
                 return;
             }
 
@@ -105,7 +105,7 @@ namespace Aws.Core
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent("Failed to start clock");
+                Utilities.LogEvent("Failed to start clock");
                 return;
             }
 
@@ -122,13 +122,13 @@ namespace Aws.Core
         {
             try
             {
-                if (!Directory.Exists(Helpers.DATA_DIRECTORY))
-                    Directory.CreateDirectory(Helpers.DATA_DIRECTORY);
+                if (!Directory.Exists(Utilities.DATA_DIRECTORY))
+                    Directory.CreateDirectory(Utilities.DATA_DIRECTORY);
             }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent("Failed to create data directory");
+                Utilities.LogEvent("Failed to create data directory");
                 return false;
             }
 
@@ -140,7 +140,7 @@ namespace Aws.Core
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent("Failed to create data database");
+                Utilities.LogEvent("Failed to create data database");
                 return false;
             }
 
@@ -155,7 +155,7 @@ namespace Aws.Core
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                Helpers.LogEvent("Failed to create transmit database");
+                Utilities.LogEvent("Failed to create transmit database");
                 return false;
             }
 

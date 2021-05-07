@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aws.Routines
+namespace Aws.Misc
 {
     public class DailyStatistic
     {

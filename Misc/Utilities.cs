@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Aws.Routines
+namespace Aws.Misc
 {
-    internal static class Helpers
+    internal static class Utilities
     {
         public static string LOGGING_FILE = "/var/logs/aws.log";
         public static string CONFIG_FILE = "/etc/aws.json";

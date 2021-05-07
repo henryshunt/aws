@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Aws.Routines
+namespace Aws.Misc
 {
     /// <summary>
     /// Provides various database-related methods.
@@ -13,12 +13,12 @@ namespace Aws.Routines
         /// <summary>
         /// The path to the SQLite database file that stores logged data.
         /// </summary>
-        private static string DATA_FILE = Helpers.DATA_DIRECTORY + "data.sq3";
+        private static string DATA_FILE = Utilities.DATA_DIRECTORY + "data.sq3";
 
         /// <summary>
         /// The path to the SQLite database file that stores data for transmission.
         /// </summary>
-        private static string TRANSMIT_FILE = Helpers.DATA_DIRECTORY + "transmit.sq3";
+        private static string TRANSMIT_FILE = Utilities.DATA_DIRECTORY + "transmit.sq3";
 
         /// <summary>
         /// Determines whether a database exists.
@@ -245,7 +245,7 @@ namespace Aws.Routines
                     }
 
                     if (vectors.Count > 0)
-                        return (int)(Math.Round(Helpers.VectorDirectionAverage(vectors)) % 360);
+                        return (int)(Math.Round(Utilities.VectorDirectionAverage(vectors)) % 360);
                     else return null;
                 }
             }

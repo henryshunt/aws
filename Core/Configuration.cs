@@ -1,4 +1,4 @@
-﻿using Aws.Routines;
+﻿using Aws.Misc;
 using Newtonsoft.Json.Linq;
 using NJsonSchema;
 using NJsonSchema.Validation;
@@ -29,14 +29,14 @@ namespace Aws.Core
         public Configuration() { }
 
         /// <summary>
-        /// Loads configuration data from a JSON file located at <see cref="Helpers.CONFIG_FILE"/>.
+        /// Loads configuration data from a JSON file located at <see cref="Utilities.CONFIG_FILE"/>.
         /// </summary>
         /// <exception cref="ConfigurationSchemaException">
         /// Thrown if the configuration data does not conform to the required schema.
         /// </exception>
         public async Task LoadAsync()
         {
-            string json = File.ReadAllText(Helpers.CONFIG_FILE);
+            string json = File.ReadAllText(Utilities.CONFIG_FILE);
 
             JsonSchema schema =
                 await JsonSchema.FromFileAsync("Resources/ConfigurationSchema.json");

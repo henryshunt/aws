@@ -1,4 +1,4 @@
-﻿namespace Aws.Routines
+﻿namespace Aws.Misc
 {
     public enum DatabaseFile
     {
