@@ -247,7 +247,7 @@ namespace Aws.Core
                 if (sample.WindSpeed != null)
                 {
                     sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
-                        ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMphPerHz));
+                        ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMsPerHz));
                 }
 
                 if (sample.WindDirection != null)
