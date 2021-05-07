@@ -198,8 +198,7 @@ namespace Aws.Core
                 return;
             }
 
-            try { Sample(e.Time); }
-            catch { }
+            Sample(e.Time);
 
             if (e.Time.Second == 0)
             {
@@ -234,52 +233,67 @@ namespace Aws.Core
         private void Sample(DateTime time)
         {
             if ((bool)config.sensors.mcp9808.enabled)
-                sampleCache.AirTemperature.Add(mcp9808.Sample());
+            {
+                try { sampleCache.AirTemperature.Add(mcp9808.Sample()); }
+                catch { }
+            }
 
             if ((bool)config.sensors.bme680.enabled)
             {
-                Tuple<double, double, double> sample = bme680.Sample();
-                sampleCache.RelativeHumidity.Add(sample.Item2);
-                sampleCache.StationPressure.Add(sample.Item3);
+                try
+                {
+                    Tuple<double, double, double> sample = bme680.Sample();
+                    sampleCache.RelativeHumidity.Add(sample.Item2);
+                    sampleCache.StationPressure.Add(sample.Item3);
+                }
+                catch { }
             }
 
             if ((bool)config.sensors.satellite.enabled)
             {
-                SatelliteSample sample = satellite.Sample();
-
-                if (sample.WindSpeed != null)
+                try
                 {
-                    if (lastI8paSampleTime != null &&
-                        lastI8paSampleTime == time - TimeSpan.FromSeconds(1))
+                    SatelliteSample sample = satellite.Sample();
+
+                    if (sample.WindSpeed != null)
                     {
-                        sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
-                            ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMsPerHz));
+                        if (lastI8paSampleTime != null &&
+                            lastI8paSampleTime == time - TimeSpan.FromSeconds(1))
+                        {
+                            sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
+                                ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMsPerHz));
+                        }
+
+                        lastI8paSampleTime = time;
                     }
 
-                    lastI8paSampleTime = time;
-                }
+                    if (sample.WindDirection != null)
+                    {
+                        sampleCache.WindDirection.Add(new KeyValuePair<DateTime, double>(
+                            time, (double)sample.WindDirection));
+                    }
 
-                if (sample.WindDirection != null)
-                {
-                    sampleCache.WindDirection.Add(new KeyValuePair<DateTime, double>(
-                        time, (double)sample.WindDirection));
+                    if (sample.SunshineDuration != null)
+                        sampleCache.SunshineDuration.Add((bool)sample.SunshineDuration);
                 }
-
-                if (sample.SunshineDuration != null)
-                    sampleCache.SunshineDuration.Add((bool)sample.SunshineDuration);
+                catch { }
             }
 
             if ((bool)config.sensors.rr111.enabled)
             {
-                double rainfall = rr111.Sample();
-
-                if (lastRr111SampleTime != null &&
-                    lastRr111SampleTime == time - TimeSpan.FromSeconds(1))
+                try
                 {
-                    sampleCache.Rainfall.Add(rainfall);
-                }
+                    double rainfall = rr111.Sample();
 
-                lastRr111SampleTime = time;
+                    if (lastRr111SampleTime != null &&
+                        lastRr111SampleTime == time - TimeSpan.FromSeconds(1))
+                    {
+                        sampleCache.Rainfall.Add(rainfall);
+                    }
+
+                    lastRr111SampleTime = time;
+                }
+                catch { }
             }
         }
 
