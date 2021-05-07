@@ -97,14 +97,14 @@
             }
         },
 
-        "transmitter": {
+        "uploader": {
             "type": "object",
             "properties": {
-                "transmit": {
+                "upload": {
                     "type": "boolean"
                 }
             },
-            "required": [ "transmit" ]
+            "required": [ "upload" ]
         }
     },
 

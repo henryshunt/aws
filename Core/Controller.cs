@@ -147,16 +147,16 @@ namespace Aws.Core
 
             try
             {
-                if ((bool)config.transmitter.transmit &&
-                    !Database.Exists(DatabaseFile.Transmit))
+                if ((bool)config.uploader.upload &&
+                    !Database.Exists(DatabaseFile.Upload))
                 {
-                    Database.Create(DatabaseFile.Transmit);
+                    Database.Create(DatabaseFile.Upload);
                 }
             }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                LogEvent("Failed to create transmit database");
+                LogEvent("Failed to create upload database");
                 return false;
             }
 
@@ -165,7 +165,7 @@ namespace Aws.Core
 
         private void DataLogger_DataLogged(object sender, DataLoggerEventArgs e)
         {
-            // Transmit data
+            // Upload data
         }
     }
 }

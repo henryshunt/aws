@@ -19,7 +19,7 @@ namespace Aws.Misc
         /// <summary>
         /// The path to the SQLite database file that stores data for transmission.
         /// </summary>
-        private static string TRANSMIT_FILE = DATA_DIRECTORY + "transmit.sq3";
+        private static string UPLOAD_FILE = DATA_DIRECTORY + "upload.sq3";
 
         /// <summary>
         /// Determines whether a database exists.
@@ -32,7 +32,7 @@ namespace Aws.Misc
         /// </returns>
         public static bool Exists(DatabaseFile database)
         {
-            return File.Exists(database == DatabaseFile.Data ? DATA_FILE : TRANSMIT_FILE);
+            return File.Exists(database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE);
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace Aws.Misc
         /// </returns>
         public static SqliteConnection Connect(DatabaseFile database)
         {
-            string path = database == DatabaseFile.Data ? DATA_FILE : TRANSMIT_FILE;
+            string path = database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE;
 
             return new SqliteConnection(
                 string.Format("Data Source={0};Mode=ReadWrite", path));
@@ -60,7 +60,7 @@ namespace Aws.Misc
         /// </param>
         public static void Create(DatabaseFile database)
         {
-            string path = database == DatabaseFile.Data ? DATA_FILE : TRANSMIT_FILE;
+            string path = database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE;
             File.WriteAllBytes(path, new byte[0]);
 
             const string reportsSql = "CREATE TABLE reports (" +
@@ -76,7 +76,7 @@ namespace Aws.Misc
                 "mslPresMin REAL, mslPresMax REAL)";
 
             // Random column is used to identify when records have changed
-            if (database == DatabaseFile.Transmit)
+            if (database == DatabaseFile.Upload)
                 dayStatsSql = string.Format(dayStatsSql, ", random INTEGER NOT NULL");
             else dayStatsSql = string.Format(dayStatsSql, "");
 
@@ -277,7 +277,7 @@ namespace Aws.Misc
                 "mslPresAvg = @mslPresAvg, mslPresMin = @mslPresMin, mslPresMax = @mslPresMax";
 
             // Random column is used to identify when records have changed
-            if (database == DatabaseFile.Transmit)
+            if (database == DatabaseFile.Upload)
                 sql = string.Format(sql, ", @random", "random = @random, ");
             else sql = string.Format(sql, "", "");
 
@@ -288,7 +288,7 @@ namespace Aws.Misc
                 SqliteCommand query = new SqliteCommand(sql, connection);
                 query.Parameters.AddWithValue("@date", statistic.Date.ToString("yyyy-MM-dd"));
 
-                if (database == DatabaseFile.Transmit)
+                if (database == DatabaseFile.Upload)
                     query.Parameters.AddWithValue("@random", new Random().Next());
 
                 query.Parameters.AddWithValue("@airTempAvg", statistic.AirTemperatureAverage != null ?

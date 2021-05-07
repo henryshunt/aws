@@ -22,7 +22,7 @@ namespace Aws.Core
         public int clockTickPin { get; private set; }
         public dynamic position { get; private set; }
         public dynamic sensors { get; private set; }
-        public dynamic transmitter { get; private set; }
+        public dynamic uploader { get; private set; }
 
         /// <summary>
         /// Initialises a new instance of the <see cref="Configuration"/> class.
@@ -74,7 +74,7 @@ namespace Aws.Core
             position = jsonObject.position;
             position.timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
             sensors = jsonObject.sensors;
-            transmitter = jsonObject.transmitter;
+            uploader = jsonObject.uploader;
         }
 
         /// <summary>

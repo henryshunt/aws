@@ -3,6 +3,6 @@
     public enum DatabaseFile
     {
         Data,
-        Transmit
+        Upload
     }
 }

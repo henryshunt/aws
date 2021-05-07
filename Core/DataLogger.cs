@@ -311,8 +311,8 @@ namespace Aws.Core
             Report report = GenerateReport(time, samples);
             Database.WriteReport(report, DatabaseFile.Data);
 
-            if ((bool)config.transmitter.transmit)
-                Database.WriteReport(report, DatabaseFile.Transmit);
+            if ((bool)config.uploader.upload)
+                Database.WriteReport(report, DatabaseFile.Upload);
 
             // At start of new day, recalculate previous day's statistics because it needs to
             // include the data reported at 00:00:00 of the new day
@@ -324,8 +324,8 @@ namespace Aws.Core
                     config.position.timeZone);
                 Database.WriteDailyStatistic(statistic2, DatabaseFile.Data);
 
-                if ((bool)config.transmitter.transmit)
-                    Database.WriteDailyStatistic(statistic2, DatabaseFile.Transmit);
+                if ((bool)config.uploader.upload)
+                    Database.WriteDailyStatistic(statistic2, DatabaseFile.Upload);
             }
 
             DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.position.timeZone);
@@ -333,8 +333,8 @@ namespace Aws.Core
                 config.position.timeZone);
             Database.WriteDailyStatistic(statistic, DatabaseFile.Data);
 
-            if ((bool)config.transmitter.transmit)
-                Database.WriteDailyStatistic(statistic, DatabaseFile.Transmit);
+            if ((bool)config.uploader.upload)
+                Database.WriteDailyStatistic(statistic, DatabaseFile.Upload);
         }
 
         /// <summary>
