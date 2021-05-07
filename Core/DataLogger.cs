@@ -53,7 +53,9 @@ namespace Aws.Core
         private Mcp9808 mcp9808 = null;
         private Bme680 bme680 = null;
         private Satellite satellite = null;
+        private DateTime? lastI8paSampleTime = null;
         private RainwiseRainew111 rr111 = null;
+        private DateTime? lastRr111SampleTime = null;
         #endregion
 
         /// <summary>
@@ -247,8 +249,14 @@ namespace Aws.Core
 
                 if (sample.WindSpeed != null)
                 {
-                    sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
-                        ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMsPerHz));
+                    if (lastI8paSampleTime != null &&
+                        lastI8paSampleTime == time - TimeSpan.FromSeconds(1))
+                    {
+                        sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
+                            ((int)sample.WindSpeed) * Inspeed8PulseAnemom.WindSpeedMsPerHz));
+                    }
+
+                    lastI8paSampleTime = time;
                 }
 
                 if (sample.WindDirection != null)
@@ -262,7 +270,17 @@ namespace Aws.Core
             }
 
             if ((bool)config.sensors.rr111.enabled)
-                sampleCache.Rainfall.Add(rr111.Sample());
+            {
+                double rainfall = rr111.Sample();
+
+                if (lastRr111SampleTime != null &&
+                    lastRr111SampleTime == time - TimeSpan.FromSeconds(1))
+                {
+                    sampleCache.Rainfall.Add(rainfall);
+                }
+
+                lastRr111SampleTime = time;
+            }
         }
 
         /// <summary>
