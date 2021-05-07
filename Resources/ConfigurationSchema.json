@@ -23,28 +23,20 @@
                 "longitude": { "type": "number" },
                 "elevation": { "type": "number" }
             },
-            "required": [ "latitude", "longitude", "elevation" ]
+
+            "required": [
+                "latitude",
+                "longitude",
+                "elevation"
+            ]
         },
 
         "sensors": {
             "type": "object",
 
             "properties": {
-                "mcp9808": {
-                    "type": "object",
-                    "properties": {
-                        "enabled": { "type": "boolean" }
-                    },
-                    "required": [ "enabled" ]
-                },
-
-                "bme680": {
-                    "type": "object",
-                    "properties": {
-                        "enabled": { "type": "boolean" }
-                    },
-                    "required": [ "enabled" ]
-                },
+                "mcp9808": { "type": "object" },
+                "bme680": { "type": "object" },
 
                 "satellite": {
                     "type": "object",
@@ -57,111 +49,60 @@
 
                         "i8pa": {
                             "type": "object",
-                            "oneOf": [
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "enabled": { "enum": [ false ] }
-                                    },
-                                    "required": [ "enabled" ]
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "enabled": { "enum": [ true ] },
-                                        "pin": {
-                                            "type": "number",
-                                            "minimum": 0
-                                        }
-                                    },
-                                    "required": [ "enabled", "pin" ]
-                                }
-                            ]
-                        },
-
-                        "iev2": {
-                            "type": "object",
-                            "oneOf": [
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "enabled": { "enum": [ false ] }
-                                    },
-                                    "required": [ "enabled" ]
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "enabled": { "enum": [ true ] },
-                                        "pin": {
-                                            "type": "number",
-                                            "minimum": 0
-                                        }
-                                    },
-                                    "required": [ "enabled", "pin" ]
-                                }
-                            ]
-                        },
-
-                        "isds": {
-                            "type": "object",
-                            "oneOf": [
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "enabled": { "enum": [ false ] }
-                                    },
-                                    "required": [ "enabled" ]
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "enabled": { "enum": [ true ] },
-                                        "pin": {
-                                            "type": "number",
-                                            "minimum": 0
-                                        }
-                                    },
-                                    "required": [ "enabled", "pin" ]
-                                }
-                            ]
-                        }
-                    },
-
-                    "required": [ "port", "i8pa", "iev2", "isds" ]
-                },
-
-                "rr111": {
-                    "oneOf": [
-                        {
-                            "type": "object",
                             "properties": {
-                                "enabled": { "enum": [ false ] }
-                            },
-                            "required": [ "enabled" ]
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "enabled": { "enum": [ true ] },
                                 "pin": {
                                     "type": "number",
                                     "minimum": 0
                                 }
                             },
-                            "required": [ "enabled", "pin" ]
-                        }
-                    ]
-                }
-            },
+                            "required": [ "pin" ]
+                        },
 
-            "required": [ "mcp9808", "bme680", "satellite", "rr111" ]
+                        "iev2": {
+                            "type": "object",
+                            "properties": {
+                                "pin": {
+                                    "type": "number",
+                                    "minimum": 0
+                                }
+                            },
+                            "required": [ "pin" ]
+                        },
+
+                        "isds": {
+                            "type": "object",
+                            "properties": {
+                                "pin": {
+                                    "type": "number",
+                                    "minimum": 0
+                                }
+                            },
+                            "required": [ "pin" ]
+                        }
+                    },
+
+                    "required": [ "port" ]
+                },
+
+                "rr111": {
+                    "type": "object",
+                    "properties": {
+                        "pin": {
+                            "type": "number",
+                            "minimum": 0
+                        }
+                    },
+                    "required": [ "pin" ]
+                }
+            }
         },
 
         "transmitter": {
             "type": "object",
             "properties": {
-                "transmit": { "type": "boolean" }
+                "transmit": {
+                    "type": "boolean"
+                }
             },
             "required": [ "transmit" ]
         }

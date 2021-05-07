@@ -94,7 +94,7 @@ namespace Aws.Core
         {
             bool success = true;
 
-            if ((bool)config.sensors.mcp9808.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Mcp9808))
             {
                 try
                 {
@@ -109,7 +109,7 @@ namespace Aws.Core
                 }
             }
 
-            if ((bool)config.sensors.bme680.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Bme680))
             {
                 try
                 {
@@ -124,25 +124,23 @@ namespace Aws.Core
                 }
             }
 
-            if ((bool)config.sensors.satellite.i8pa.enabled ||
-                (bool)config.sensors.satellite.iev2.enabled ||
-                (bool)config.sensors.satellite.isds.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Satellite))
             {
                 SatelliteConfiguration satConfig = new SatelliteConfiguration();
 
-                if ((bool)config.sensors.satellite.i8pa.enabled)
+                if (config.IsSensorEnabled(AwsSensor.I8pa))
                 {
                     satConfig.WindSpeedEnabled = true;
                     satConfig.WindSpeedPin = (int)config.sensors.satellite.i8pa.pin;
                 }
 
-                if ((bool)config.sensors.satellite.iev2.enabled)
+                if (config.IsSensorEnabled(AwsSensor.Iev2))
                 {
                     satConfig.WindDirectionEnabled = true;
                     satConfig.WindDirectionPin = (int)config.sensors.satellite.iev2.pin;
                 }
 
-                if ((bool)config.sensors.satellite.isds.enabled)
+                if (config.IsSensorEnabled(AwsSensor.Isds))
                 {
                     satConfig.SunshineDurationEnabled = true;
                     satConfig.SunshineDurationPin = (int)config.sensors.satellite.isds.pin;
@@ -161,7 +159,7 @@ namespace Aws.Core
                 }
             }
 
-            if ((bool)config.sensors.rr111.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Rr111))
             {
                 try
                 {
@@ -232,13 +230,13 @@ namespace Aws.Core
         /// </param>
         private void Sample(DateTime time)
         {
-            if ((bool)config.sensors.mcp9808.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Mcp9808))
             {
                 try { sampleCache.AirTemperature.Add(mcp9808.Sample()); }
                 catch { }
             }
 
-            if ((bool)config.sensors.bme680.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Bme680))
             {
                 try
                 {
@@ -249,7 +247,7 @@ namespace Aws.Core
                 catch { }
             }
 
-            if ((bool)config.sensors.satellite.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Satellite))
             {
                 try
                 {
@@ -279,7 +277,7 @@ namespace Aws.Core
                 catch { }
             }
 
-            if ((bool)config.sensors.rr111.enabled)
+            if (config.IsSensorEnabled(AwsSensor.Rr111))
             {
                 try
                 {
@@ -321,16 +319,18 @@ namespace Aws.Core
             if (time.Hour == 0 && time.Minute == 0)
             {
                 DateTime local2 = TimeZoneInfo.ConvertTimeFromUtc(time - new TimeSpan(0, 1, 0),
-                    config.timeZone);
-                DailyStatistic statistic2 = Database.CalculateDailyStatistic(local2, config.timeZone);
+                    config.position.timeZone);
+                DailyStatistic statistic2 = Database.CalculateDailyStatistic(local2,
+                    config.position.timeZone);
                 Database.WriteDailyStatistic(statistic2, DatabaseFile.Data);
 
                 if ((bool)config.transmitter.transmit)
                     Database.WriteDailyStatistic(statistic2, DatabaseFile.Transmit);
             }
 
-            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.timeZone);
-            DailyStatistic statistic = Database.CalculateDailyStatistic(local, config.timeZone);
+            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.position.timeZone);
+            DailyStatistic statistic = Database.CalculateDailyStatistic(local,
+                config.position.timeZone);
             Database.WriteDailyStatistic(statistic, DatabaseFile.Data);
 
             if ((bool)config.transmitter.transmit)

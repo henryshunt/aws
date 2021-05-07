@@ -1,8 +1,10 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using NJsonSchema;
 using NJsonSchema.Validation;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,7 +21,6 @@ namespace Aws.Core
         public int errorLedPin { get; private set; }
         public int clockTickPin { get; private set; }
         public dynamic position { get; private set; }
-        public TimeZoneInfo timeZone { get; private set; }
         public dynamic sensors { get; private set; }
         public dynamic transmitter { get; private set; }
 
@@ -29,7 +30,7 @@ namespace Aws.Core
         public Configuration() { }
 
         /// <summary>
-        /// Loads configuration data from a JSON file located at <see cref="Utilities.CONFIG_FILE"/>.
+        /// Loads configuration data from a JSON file located at <see cref="CONFIG_FILE"/>.
         /// </summary>
         /// <exception cref="ConfigurationSchemaException">
         /// Thrown if the configuration data does not conform to the required schema.
@@ -49,18 +50,85 @@ namespace Aws.Core
                     errors.ElementAt(0).ToString());
             }
 
-            dynamic jsonObject = JObject.Parse(json);
+            dynamic jsonObject = JsonConvert.DeserializeObject<ExpandoObject>(json,
+                new ExpandoObjectConverter());
 
-            dataLedPin = jsonObject.dataLedPin;
-            errorLedPin = jsonObject.errorLedPin;
-            clockTickPin = jsonObject.clockTickPin;
+            var sensorsDict = (IDictionary<string, object>)jsonObject.sensors;
+
+            if (sensorsDict.ContainsKey("satellite"))
+            {
+                var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
+
+                if (!satelliteDict.ContainsKey("i8pa") &&
+                    !satelliteDict.ContainsKey("i8pa") &&
+                    !satelliteDict.ContainsKey("i8pa"))
+                {
+                    throw new ConfigurationSchemaException(
+                        "sensors.satellite must contain at least one of i8pa, iev2 or isds");
+                }
+            }
+
+            dataLedPin = (int)jsonObject.dataLedPin;
+            errorLedPin = (int)jsonObject.errorLedPin;
+            clockTickPin = (int)jsonObject.clockTickPin;
             position = jsonObject.position;
-            timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
+            position.timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
             sensors = jsonObject.sensors;
             transmitter = jsonObject.transmitter;
+        }
 
-            if ((bool)sensors.satellite.i8pa.enabled || (bool)sensors.satellite.iev2.enabled)
-                sensors.satellite.enabled = true;
+        /// <summary>
+        /// Determines whether a sensor is enabled in the configuration data.
+        /// </summary>
+        /// <param name="sensor">
+        /// The sensor to check.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if the sensor is enabled, otherwise <see langword="false"/>.
+        /// </returns>
+        public bool IsSensorEnabled(AwsSensor sensor)
+        {
+            var sensorsDict = (IDictionary<string, object>)sensors;
+
+            switch (sensor)
+            {
+                case AwsSensor.Mcp9808:
+                    return sensorsDict.ContainsKey("mcp9808");
+                case AwsSensor.Bme680:
+                    return sensorsDict.ContainsKey("bme680");
+                case AwsSensor.Satellite:
+                    return sensorsDict.ContainsKey("satellite");
+                case AwsSensor.I8pa:
+                    {
+                        if (sensorsDict.ContainsKey("satellite"))
+                        {
+                            var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
+                            return satelliteDict.ContainsKey("i8pa");
+                        }
+                        else return false;
+                    }
+                case AwsSensor.Iev2:
+                    {
+                        if (sensorsDict.ContainsKey("satellite"))
+                        {
+                            var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
+                            return satelliteDict.ContainsKey("iev2");
+                        }
+                        else return false;
+                    }
+                case AwsSensor.Isds:
+                    {
+                        if (sensorsDict.ContainsKey("satellite"))
+                        {
+                            var satelliteDict = (IDictionary<string, object>)sensorsDict["satellite"];
+                            return satelliteDict.ContainsKey("isds");
+                        }
+                        else return false;
+                    }
+                case AwsSensor.Rr111:
+                    return sensorsDict.ContainsKey("rr111");
+                default: return false;
+            }
         }
     }
 }
