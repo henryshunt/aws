@@ -366,7 +366,7 @@ namespace Aws.Core
 
                 if (windValues.Item1 != null)
                     report.WindSpeed = Math.Round((double)windValues.Item1, 1);
-                if (windValues.Item2 != null)
+                if (windValues.Item2 != null && report.WindSpeed != null && report.WindSpeed > 0)
                     report.WindDirection = (int)Math.Round((double)windValues.Item2, 0) % 360;
                 if (windValues.Item3 != null)
                     report.WindGust = Math.Round((double)windValues.Item3, 1);
