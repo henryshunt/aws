@@ -57,13 +57,13 @@ namespace Aws.Hardware
             string portPath = string.Format("/sys/bus/usb/devices/1-1.{0}:1.0", port);
 
             if (!Directory.Exists(portPath))
-                throw new SensorException("Device not connected");
+                throw new SatelliteException("Device not connected");
 
             // The device path can be found inside the above directory
             string[] devicePath = Directory.GetDirectories(portPath, "ttyUSB*");
 
             if (devicePath.Length == 0)
-                throw new SensorException("Device not connected");
+                throw new SatelliteException("Device not connected");
 
             device = new SerialPort("/dev/" + new FileInfo(devicePath[0]).Name, 115200);
             device.Open();
@@ -74,10 +74,10 @@ namespace Aws.Hardware
             string response = SendCommand("CONFIG " + config.ToString() + "\n");
 
             if (response == null)
-                throw new SensorException("CONFIG command timed out");
+                throw new SatelliteException("CONFIG command timed out");
             // Use Contains() as the first transmission sometimes has extra characters
             else if (!response.Contains("OK"))
-                throw new SensorException("CONFIG command failed");
+                throw new SatelliteException("CONFIG command failed");
         }
 
         /// <summary>
@@ -99,9 +99,9 @@ namespace Aws.Hardware
             string response = SendCommand("SAMPLE\n");
 
             if (response == null)
-                throw new SensorException("SAMPLE command timed out");
+                throw new SatelliteException("SAMPLE command timed out");
             else if (response == "ERROR")
-                throw new SensorException("SAMPLE command failed");
+                throw new SatelliteException("SAMPLE command failed");
 
             return JsonConvert.DeserializeObject<SatelliteSample>(response);
         }

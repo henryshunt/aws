@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Aws.Misc;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using NJsonSchema;
 using NJsonSchema.Validation;

@@ -35,7 +35,7 @@ namespace Aws.Core
         private bool isSampling = false;
 
         /// <summary>
-        /// The time the data logger started sampling from the sensors.
+        /// The time the data logger started sampling from the sensors, in UTC.
         /// </summary>
         private DateTime startTime;
 
@@ -82,9 +82,9 @@ namespace Aws.Core
         #endregion
 
         /// <summary>
-        /// Occurs when a new observation is successfully logged to the database. Always occurs on a new thread.
+        /// Occurs when data is logged to the database. Always occurs on a new thread.
         /// </summary>
-        public event EventHandler<DataLoggerEventArgs> DataLogged;
+        public event EventHandler<DataLoggedEventArgs> DataLogged;
 
         /// <summary>
         /// Initialises a new instance of the <see cref="DataLogger"/> class.
@@ -127,7 +127,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    LogEvent("Failed to open airTemp sensor");
+                    LogMessage("Failed to open airTemp sensor");
                     success = false;
                 }
             }
@@ -142,7 +142,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    LogEvent("Failed to open BME680 sensor");
+                    LogMessage("Failed to open BME680 sensor");
                     success = false;
                 }
             }
@@ -177,7 +177,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    LogEvent("Failed to open satellite sensor");
+                    LogMessage("Failed to open satellite sensor");
                     success = false;
                 }
             }
@@ -192,7 +192,7 @@ namespace Aws.Core
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    LogEvent("Failed to open rainfall sensor");
+                    LogMessage("Failed to open rainfall sensor");
                     success = false;
                 }
             }
@@ -240,7 +240,7 @@ namespace Aws.Core
                     Thread.Sleep(1500);
                     gpio.Write(config.dataLedPin, PinValue.Low);
 
-                    DataLogged?.Invoke(this, new DataLoggerEventArgs(e.Time));
+                    DataLogged?.Invoke(this, new DataLoggedEventArgs(e.Time));
                 }).Start();
             }
         }
@@ -249,7 +249,7 @@ namespace Aws.Core
         /// Samples each of the sensors and stores the values in <see cref="sampleCache"/>.
         /// </summary>
         /// <param name="time">
-        /// The current time.
+        /// The current time, in UTC.
         /// </param>
         private void Sample(DateTime time)
         {
@@ -322,7 +322,7 @@ namespace Aws.Core
         /// The logging routine. Produces and logs an observation, and generates and logs statistics.
         /// </summary>
         /// <param name="time">
-        /// The current time.
+        /// The current time, in UTC.
         /// </param>
         private void Log(DateTime time)
         {
@@ -337,34 +337,34 @@ namespace Aws.Core
             if ((bool)config.uploader.upload)
                 Database.WriteObservation(observation, DatabaseFile.Upload);
 
-            // At start of new day, recalculate previous day's statistics because it needs to
-            // include the data observed at 00:00:00 of the new day
-            if (time.Hour == 0 && time.Minute == 0)
-            {
-                DateTime local2 = TimeZoneInfo.ConvertTimeFromUtc(time - new TimeSpan(0, 1, 0),
-                    config.position.timeZone);
-                DailyStatistic statistic2 = Database.CalculateDailyStatistic(local2,
-                    config.position.timeZone);
-                Database.WriteDailyStatistic(statistic2, DatabaseFile.Data);
+            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.position.timeZone);
 
+            // At the start of a new day, recalculate the previous day's statistics because they
+            // need to include the observation from 00:00:00 of the new day
+            if (local.Hour == 0 && local.Minute == 0)
+            {
+                DateTime local2 = local - TimeSpan.FromMinutes(1);
+                DailyStatistics statistics2 = Database.CalculateDailyStatistics(local2,
+                    config.position.timeZone);
+
+                Database.WriteDailyStatistics(statistics2, DatabaseFile.Data);
                 if ((bool)config.uploader.upload)
-                    Database.WriteDailyStatistic(statistic2, DatabaseFile.Upload);
+                    Database.WriteDailyStatistics(statistics2, DatabaseFile.Upload);
             }
 
-            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.position.timeZone);
-            DailyStatistic statistic = Database.CalculateDailyStatistic(local,
+            DailyStatistics statistics = Database.CalculateDailyStatistics(local,
                 config.position.timeZone);
-            Database.WriteDailyStatistic(statistic, DatabaseFile.Data);
 
+            Database.WriteDailyStatistics(statistics, DatabaseFile.Data);
             if ((bool)config.uploader.upload)
-                Database.WriteDailyStatistic(statistic, DatabaseFile.Upload);
+                Database.WriteDailyStatistics(statistics, DatabaseFile.Upload);
         }
 
         /// <summary>
         /// Produces an observation from the samples in a sample cache and the wind monitor.
         /// </summary>
         /// <param name="time">
-        /// The current time.
+        /// The current time, in UTC.
         /// </param>
         /// <param name="samples">
         /// A sample cache containing the samples to produce the observation for.
@@ -414,7 +414,7 @@ namespace Aws.Core
 
             if (observation.StationPressure != null && observation.AirTemperature != null)
             {
-                double mslp = CalculateMslp((double)observation.StationPressure,
+                double mslp = CalculateMeanSeaLevelPressure((double)observation.StationPressure,
                     (double)observation.AirTemperature, (double)config.position.elevation);
 
                 observation.MslPressure = Math.Round(mslp, 1);

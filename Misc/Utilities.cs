@@ -4,31 +4,60 @@ using System.Linq;
 
 namespace Aws.Misc
 {
+    /// <summary>
+    /// Provides various utility functions and constants.
+    /// </summary>
     internal static class Utilities
     {
-        public static string LOGGING_FILE = "/var/logs/aws.log";
-        public static string CONFIG_FILE = "/etc/aws.json";
-        public static string DATA_DIRECTORY = "/var/aws/";
-        public static string GPS_FILE = DATA_DIRECTORY + "gps.json";
+        /// <summary>
+        /// The path to the file used for logging messages and exceptions.
+        /// </summary>
+        public const string LOGGING_FILE = "/var/logs/aws.log";
 
-        public enum ExitAction
-        {
-            None,
-            Terminate, // Terminates the software
-            Shutdown,  // Terminates the software and shuts down the station computer
-            Restart    // Terminates the software and restarts the station computer
-        }
+        /// <summary>
+        /// The path to the configuration file.
+        /// </summary>
+        public const string CONFIG_FILE = "/etc/aws.json";
 
-        public static void LogEvent(string message)
+        /// <summary>
+        /// The path to the directory where the program stores data.
+        /// </summary>
+        public const string DATA_DIRECTORY = "/var/aws/";
+
+        /// <summary>
+        /// Logs a message to the log file and outputs it to the console.
+        /// </summary>
+        /// <param name="message">
+        /// The message to log.
+        /// </param>
+        public static void LogMessage(string message)
         {
             Console.WriteLine(message);
         }
 
+        /// <summary>
+        /// Logs an exception to the log file and outputs it to the console.
+        /// </summary>
+        /// <param name="message">
+        /// The exception to log.
+        /// </param>
         public static void LogException(Exception exception)
         {
-            Console.WriteLine(exception.ToString());
+            Console.WriteLine(exception);
         }
 
+        /// <summary>
+        /// Calculates the dew point for a given temperature and relative humidity.
+        /// </summary>
+        /// <param name="temperature">
+        /// The temperature.
+        /// </param>
+        /// <param name="humidity">
+        /// The relative humidity.
+        /// </param>
+        /// <returns>
+        /// The calculated dew point.
+        /// </returns>
         public static double CalculateDewPoint(double temperature, double humidity)
         {
             double ea = (8.082 - temperature / 556.0) * temperature;
@@ -37,13 +66,30 @@ namespace Aws.Misc
             return 278.04 * (8.0813 - e - sr);
         }
 
-        // Formula from https://keisan.casio.com/exec/system/1224575267
-        public static double CalculateMslp(double stationPres, double airTemp, double elevation)
+        /// <summary>
+        /// Calculates the mean sea level pressure for a given pressure taken at station elevation.
+        /// </summary>
+        /// <param name="pressure">
+        /// The pressure taken at station elevation.
+        /// </param>
+        /// <param name="temperature">
+        /// The air temperature at the time the pressure measurement was taken.
+        /// </param>
+        /// <param name="elevation">
+        /// The elevation that the pressure measurement was taken at.
+        /// </param>
+        /// <remarks>
+        /// Uses the formula from <a href="https://keisan.casio.com/exec/system/1224575267">here</a>.
+        /// </remarks>
+        /// <returns>
+        /// The calculated mean sea level pressure.
+        /// </returns>
+        public static double CalculateMeanSeaLevelPressure(double pressure, double temperature,
+            double elevation)
         {
-            double x = (0.0065 * elevation)
-                / (airTemp + (0.0065 * elevation) + 273.15);
-
-            return stationPres * Math.Pow(1 - x, -5.257);
+            double x = (0.0065 * elevation) /
+                (temperature + (0.0065 * elevation) + 273.15);
+            return pressure * Math.Pow(1 - x, -5.257);
         }
 
         /// <summary>
@@ -55,6 +101,9 @@ namespace Aws.Misc
         /// <returns>
         /// The average direction of the list of vectors.
         /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Thrown if <paramref name="vectors"/> is empty.
+        /// </exception>
         public static double VectorDirectionAverage(List<Vector> vectors)
         {
             if (vectors.Count == 0)

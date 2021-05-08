@@ -24,7 +24,7 @@ namespace Aws.Core
             = new List<KeyValuePair<DateTime, double>>();
 
         /// <summary>
-        /// Stores the time that new samples were last added to the cache.
+        /// Stores the time that new samples were last added to the cache, in UTC.
         /// </summary>
         private DateTime lastCacheTime;
 
@@ -37,13 +37,13 @@ namespace Aws.Core
         /// Caches new samples and removes any samples that are ten minutes old or older from the cache.
         /// </summary>
         /// <param name="time">
-        /// The current time.
+        /// The current time, in UTC.
         /// </param>
         /// <param name="speedSamples">
-        /// The wind speed samples to cache.
+        /// The wind speed samples to cache. Times should be in UTC.
         /// </param>
         /// <param name="directionSamples">
-        /// The wind direction samples to cache.
+        /// The wind direction samples to cache. Times should be in UTC.
         /// </param>
         public void CacheSamples(DateTime time, List<KeyValuePair<DateTime, double>> speedSamples,
             List<KeyValuePair<DateTime, double>> directionSamples)
@@ -63,7 +63,7 @@ namespace Aws.Core
         /// speed and direction, and maximum three-second gust, of the cached samples.
         /// </summary>
         /// <param name="time">
-        /// The current time.
+        /// The current time, in UTC.
         /// </param>
         /// <returns>
         /// A tuple containing the calculated wind speed, direction and gust.

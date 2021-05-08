@@ -1,4 +1,4 @@
-﻿namespace Aws.Core
+﻿namespace Aws.Misc
 {
     /// <summary>
     /// Represents the sensors that the AWS can interface with.

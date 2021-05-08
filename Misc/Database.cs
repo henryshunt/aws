@@ -7,19 +7,19 @@ using static Aws.Misc.Utilities;
 namespace Aws.Misc
 {
     /// <summary>
-    /// Provides various database-related methods.
+    /// Provides various methods and constants for working with databases.
     /// </summary>
-    public static class Database
+    internal static class Database
     {
         /// <summary>
-        /// The path to the SQLite database file that stores logged data.
+        /// The path to the <see cref="DatabaseFile.Data"/> SQLite database.
         /// </summary>
-        private static string DATA_FILE = DATA_DIRECTORY + "data.sq3";
+        private const string DATA_FILE = DATA_DIRECTORY + "data.sq3";
 
         /// <summary>
-        /// The path to the SQLite database file that stores data for transmission.
+        /// The path to the <see cref="DatabaseFile.Upload"/> SQLite database.
         /// </summary>
-        private static string UPLOAD_FILE = DATA_DIRECTORY + "upload.sq3";
+        private const string UPLOAD_FILE = DATA_DIRECTORY + "upload.sq3";
 
         /// <summary>
         /// Determines whether a database exists.
@@ -46,10 +46,10 @@ namespace Aws.Misc
         /// </returns>
         public static SqliteConnection Connect(DatabaseFile database)
         {
-            string path = database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE;
+            string file = database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE;
 
             return new SqliteConnection(
-                string.Format("Data Source={0};Mode=ReadWrite", path));
+                string.Format("Data Source={0};Mode=ReadWrite", file));
         }
 
         /// <summary>
@@ -60,8 +60,8 @@ namespace Aws.Misc
         /// </param>
         public static void Create(DatabaseFile database)
         {
-            string path = database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE;
-            File.WriteAllBytes(path, new byte[0]);
+            string file = database == DatabaseFile.Data ? DATA_FILE : UPLOAD_FILE;
+            File.WriteAllBytes(file, Array.Empty<byte>());
 
             const string observationsSql = "CREATE TABLE observations (" +
                 "time TEXT PRIMARY KEY NOT NULL, airTemp REAL, relHum REAL, dewPoint REAL, " +
@@ -75,7 +75,7 @@ namespace Aws.Misc
                 "windGustMax REAL, rainfallTtl REAL, sunDurTtl INTEGER, mslPresAvg REAL, " +
                 "mslPresMin REAL, mslPresMax REAL)";
 
-            // Random column is used to identify when records have changed
+            // Random column is used to identify when a record has been updated
             if (database == DatabaseFile.Upload)
                 dayStatsSql = string.Format(dayStatsSql, ", random INTEGER NOT NULL");
             else dayStatsSql = string.Format(dayStatsSql, "");
@@ -135,7 +135,7 @@ namespace Aws.Misc
         }
 
         /// <summary>
-        /// Calculates various statistics over all records for a particular date in the local time zone.
+        /// Calculates statistics for the observations logged over a day in the local time zone.
         /// </summary>
         /// <param name="date">
         /// The date, in the local time zone, to calculate the statistics for.
@@ -146,25 +146,18 @@ namespace Aws.Misc
         /// <returns>
         /// The calculated statistics.
         /// </returns>
-        public static DailyStatistic CalculateDailyStatistic(DateTime date, TimeZoneInfo timeZone)
+        public static DailyStatistics CalculateDailyStatistics(DateTime date, TimeZoneInfo timeZone)
         {
             DateTime start = new DateTime(date.Year, date.Month, date.Day, 0, 1, 0);
-            DateTime end = start + TimeSpan.FromDays(1) - TimeSpan.FromMinutes(1);
+            DateTime end = start + new TimeSpan(23, 59, 0);
 
             start = TimeZoneInfo.ConvertTimeToUtc(start, timeZone);
             end = TimeZoneInfo.ConvertTimeToUtc(end, timeZone);
 
-            const string sql = "SELECT ROUND(AVG(airTemp), 1) AS airTempAvg, " +
-                "MIN(airTemp) AS airTempMin, MAX(airTemp) AS airTempMax, " +
-                "ROUND(AVG(relHum), 1) AS relHumAvg, " +
-                "MIN(relHum) AS relHumMin, MAX(relHum) AS relHumMax, " +
-                "ROUND(AVG(windSpeed), 1) AS windSpeedAvg, " +
-                "MIN(windSpeed) AS windSpeedMin, MAX(windSpeed) AS windSpeedMax, " +
-                "ROUND(AVG(windGust), 1) AS windGustAvg, " +
-                "MIN(windGust) AS windGustMin, MAX(windGust) AS windGustMax, " +
-                "SUM(rainfall) AS rainfallTtl, SUM(sunDur) AS sunDurTtl, " +
-                "ROUND(AVG(mslPres), 1) AS mslPresAvg, " +
-                "MIN(mslPres) AS mslPresMin, MAX(mslPres) AS mslPresMax " +
+            const string sql = "SELECT ROUND(AVG(airTemp), 1), MIN(airTemp), MAX(airTemp), " +
+                "ROUND(AVG(relHum), 1), MIN(relHum), MAX(relHum), ROUND(AVG(windSpeed), 1), " +
+                "MIN(windSpeed), MAX(windSpeed), ROUND(AVG(windGust), 1), MIN(windGust), MAX(windGust), " +
+                "SUM(rainfall), SUM(sunDur), ROUND(AVG(mslPres), 1), MIN(mslPres), MAX(mslPres) " +
                 "FROM observations WHERE time BETWEEN @start AND @end";
 
             using (SqliteConnection connection = Connect(DatabaseFile.Data))
@@ -179,7 +172,7 @@ namespace Aws.Misc
                 {
                     reader.Read();
 
-                    return new DailyStatistic(date)
+                    return new DailyStatistics(date)
                     {
                         AirTemperatureAverage = !reader.IsDBNull(0) ? reader.GetDouble(0) : null,
                         AirTemperatureMinimum = !reader.IsDBNull(1) ? reader.GetDouble(1) : null,
@@ -194,7 +187,7 @@ namespace Aws.Misc
                         // Need to manually calculate average wind direction because Microsoft.Data.Sqlite
                         // doesn't implement the required functions and I couldn't get System.Data.SQLite
                         // to work on the linux-arm platform
-                        WindDirectionAverage = CalculateAverageWindDirection(start, end),
+                        WindDirectionAverage = CalculateAverageWindDirection(connection, start, end),
 
                         WindGustAverage = !reader.IsDBNull(9) ? reader.GetDouble(9) : null,
                         WindGustMinimum = !reader.IsDBNull(10) ? reader.GetDouble(10) : null,
@@ -210,59 +203,57 @@ namespace Aws.Misc
         }
 
         /// <summary>
-        /// Calculates the average wind direction over all records within a time range.
+        /// Calculates the average wind direction for the observations within a time range.
         /// </summary>
+        /// <param name="connection">
+        /// The database connection to use.
+        /// </param>
         /// <param name="start">
-        /// The start time of the range of records to use.
+        /// The start time of the range of observations to use, in UTC.
         /// </param>
         /// <param name="end">
-        /// The end time of the range of records to use.
+        /// The end time of the range of observations to use, in UTC.
         /// </param>
         /// <returns>
-        /// The average wind direction, or <see langword="null"/> if no records were found.
+        /// The average wind direction, or <see langword="null"/> if no observations were found.
         /// </returns>
-        private static int? CalculateAverageWindDirection(DateTime start, DateTime end)
+        private static int? CalculateAverageWindDirection(SqliteConnection connection,
+            DateTime start, DateTime end)
         {
             const string sql = "SELECT time, windSpeed, windDir " +
                 "FROM observations WHERE time BETWEEN @start AND @end";
 
-            using (SqliteConnection connection = Connect(DatabaseFile.Data))
+            SqliteCommand query = new SqliteCommand(sql, connection);
+            query.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd HH:mm:ss"));
+            query.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd HH:mm:ss"));
+
+            using (SqliteDataReader reader = query.ExecuteReader())
             {
-                connection.Open();
+                List<Vector> vectors = new List<Vector>();
 
-                SqliteCommand query = new SqliteCommand(sql, connection);
-                query.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd HH:mm:ss"));
-                query.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                using (SqliteDataReader reader = query.ExecuteReader())
+                // Create a vector (speed and direction pair) for each observation
+                while (reader.Read())
                 {
-                    List<Vector> vectors = new List<Vector>();
-
-                    // Create a vector (speed and direction pair) for each record
-                    while (reader.Read())
-                    {
-                        if (!reader.IsDBNull(1) && !reader.IsDBNull(2))
-                            vectors.Add(new Vector(reader.GetDouble(1), reader.GetInt32(2)));
-                    }
-
-                    if (vectors.Count > 0)
-                        return (int)(Math.Round(VectorDirectionAverage(vectors)) % 360);
-                    else return null;
+                    if (!reader.IsDBNull(1) && !reader.IsDBNull(2))
+                        vectors.Add(new Vector(reader.GetDouble(1), reader.GetInt32(2)));
                 }
+
+                if (vectors.Count > 0)
+                    return (int)(Math.Round(VectorDirectionAverage(vectors)) % 360);
+                else return null;
             }
         }
 
         /// <summary>
-        /// Inserts a daily statistic into a database. If a record with that date already exists then
-        /// it is updated.
+        /// Inserts daily statistics into a database. If a record with that date already exists then it is updated.
         /// </summary>
-        /// <param name="statistic">
-        /// The statistic to insert.
+        /// <param name="statistics">
+        /// The daily statistics to insert.
         /// </param>
         /// <param name="database">
-        /// The database to insert the statistic into.
+        /// The database to insert the daily statistics into.
         /// </param>
-        public static void WriteDailyStatistic(DailyStatistic statistic, DatabaseFile database)
+        public static void WriteDailyStatistics(DailyStatistics statistics, DatabaseFile database)
         {
             string sql = "INSERT INTO dayStats VALUES (" +
                 "@date{0}, @airTempAvg, @airTempMin, @airTempMax, @relHumAvg, @relHumMin, @relHumMax, " +
@@ -276,7 +267,7 @@ namespace Aws.Misc
                 "windGustMax = @windGustMax, rainfallTtl = @rainfallTtl, sunDurTtl = @sunDurTtl, " +
                 "mslPresAvg = @mslPresAvg, mslPresMin = @mslPresMin, mslPresMax = @mslPresMax";
 
-            // Random column is used to identify when records have changed
+            // Random column is used to identify when a record has been updated
             if (database == DatabaseFile.Upload)
                 sql = string.Format(sql, ", @random", "random = @random, ");
             else sql = string.Format(sql, "", "");
@@ -286,53 +277,53 @@ namespace Aws.Misc
                 connection.Open();
 
                 SqliteCommand query = new SqliteCommand(sql, connection);
-                query.Parameters.AddWithValue("@date", statistic.Date.ToString("yyyy-MM-dd"));
+                query.Parameters.AddWithValue("@date", statistics.Date.ToString("yyyy-MM-dd"));
 
                 if (database == DatabaseFile.Upload)
                     query.Parameters.AddWithValue("@random", new Random().Next());
 
-                query.Parameters.AddWithValue("@airTempAvg", statistic.AirTemperatureAverage != null ?
-                    statistic.AirTemperatureAverage : DBNull.Value);
-                query.Parameters.AddWithValue("@airTempMin", statistic.AirTemperatureMinimum != null ?
-                    statistic.AirTemperatureMinimum : DBNull.Value);
-                query.Parameters.AddWithValue("@airTempMax", statistic.AirTemperatureMaximum != null ?
-                    statistic.AirTemperatureMaximum : DBNull.Value);
+                query.Parameters.AddWithValue("@airTempAvg", statistics.AirTemperatureAverage != null ?
+                    statistics.AirTemperatureAverage : DBNull.Value);
+                query.Parameters.AddWithValue("@airTempMin", statistics.AirTemperatureMinimum != null ?
+                    statistics.AirTemperatureMinimum : DBNull.Value);
+                query.Parameters.AddWithValue("@airTempMax", statistics.AirTemperatureMaximum != null ?
+                    statistics.AirTemperatureMaximum : DBNull.Value);
 
-                query.Parameters.AddWithValue("@relHumAvg", statistic.RelativeHumidityAverage != null ?
-                    statistic.RelativeHumidityAverage : DBNull.Value);
-                query.Parameters.AddWithValue("@relHumMin", statistic.RelativeHumidityMinimum != null ?
-                    statistic.RelativeHumidityMinimum : DBNull.Value);
-                query.Parameters.AddWithValue("@relHumMax", statistic.RelativeHumidityMaximum != null ?
-                    statistic.RelativeHumidityMaximum : DBNull.Value);
+                query.Parameters.AddWithValue("@relHumAvg", statistics.RelativeHumidityAverage != null ?
+                    statistics.RelativeHumidityAverage : DBNull.Value);
+                query.Parameters.AddWithValue("@relHumMin", statistics.RelativeHumidityMinimum != null ?
+                    statistics.RelativeHumidityMinimum : DBNull.Value);
+                query.Parameters.AddWithValue("@relHumMax", statistics.RelativeHumidityMaximum != null ?
+                    statistics.RelativeHumidityMaximum : DBNull.Value);
 
-                query.Parameters.AddWithValue("@windSpeedAvg", statistic.WindSpeedAverage != null ?
-                    statistic.WindSpeedAverage : DBNull.Value);
-                query.Parameters.AddWithValue("@windSpeedMin", statistic.WindSpeedMinimum != null ?
-                    statistic.WindSpeedMinimum : DBNull.Value);
-                query.Parameters.AddWithValue("@windSpeedMax", statistic.WindSpeedMaximum != null ?
-                    statistic.WindSpeedMaximum : DBNull.Value);
+                query.Parameters.AddWithValue("@windSpeedAvg", statistics.WindSpeedAverage != null ?
+                    statistics.WindSpeedAverage : DBNull.Value);
+                query.Parameters.AddWithValue("@windSpeedMin", statistics.WindSpeedMinimum != null ?
+                    statistics.WindSpeedMinimum : DBNull.Value);
+                query.Parameters.AddWithValue("@windSpeedMax", statistics.WindSpeedMaximum != null ?
+                    statistics.WindSpeedMaximum : DBNull.Value);
 
-                query.Parameters.AddWithValue("@windDirAvg", statistic.WindDirectionAverage != null ?
-                    statistic.WindDirectionAverage : DBNull.Value);
+                query.Parameters.AddWithValue("@windDirAvg", statistics.WindDirectionAverage != null ?
+                    statistics.WindDirectionAverage : DBNull.Value);
 
-                query.Parameters.AddWithValue("@windGustAvg", statistic.WindGustAverage != null ?
-                    statistic.WindGustAverage : DBNull.Value);
-                query.Parameters.AddWithValue("@windGustMin", statistic.WindGustMinimum != null ?
-                    statistic.WindGustMinimum : DBNull.Value);
-                query.Parameters.AddWithValue("@windGustMax", statistic.WindGustMaximum != null ?
-                    statistic.WindGustMaximum : DBNull.Value);
+                query.Parameters.AddWithValue("@windGustAvg", statistics.WindGustAverage != null ?
+                    statistics.WindGustAverage : DBNull.Value);
+                query.Parameters.AddWithValue("@windGustMin", statistics.WindGustMinimum != null ?
+                    statistics.WindGustMinimum : DBNull.Value);
+                query.Parameters.AddWithValue("@windGustMax", statistics.WindGustMaximum != null ?
+                    statistics.WindGustMaximum : DBNull.Value);
 
-                query.Parameters.AddWithValue("@rainfallTtl", statistic.RainfallTotal != null ?
-                    statistic.RainfallTotal : DBNull.Value);
-                query.Parameters.AddWithValue("@sunDurTtl", statistic.SunshineDurationTotal != null ?
-                    statistic.SunshineDurationTotal : DBNull.Value);
+                query.Parameters.AddWithValue("@rainfallTtl", statistics.RainfallTotal != null ?
+                    statistics.RainfallTotal : DBNull.Value);
+                query.Parameters.AddWithValue("@sunDurTtl", statistics.SunshineDurationTotal != null ?
+                    statistics.SunshineDurationTotal : DBNull.Value);
 
-                query.Parameters.AddWithValue("@mslPresAvg", statistic.MslPressureAverage != null ?
-                    statistic.MslPressureAverage : DBNull.Value);
-                query.Parameters.AddWithValue("@mslPresMin", statistic.MslPressureMinimum != null ?
-                    statistic.MslPressureMinimum : DBNull.Value);
-                query.Parameters.AddWithValue("@mslPresMax", statistic.MslPressureMaximum != null ?
-                    statistic.MslPressureMaximum : DBNull.Value);
+                query.Parameters.AddWithValue("@mslPresAvg", statistics.MslPressureAverage != null ?
+                    statistics.MslPressureAverage : DBNull.Value);
+                query.Parameters.AddWithValue("@mslPresMin", statistics.MslPressureMinimum != null ?
+                    statistics.MslPressureMinimum : DBNull.Value);
+                query.Parameters.AddWithValue("@mslPresMax", statistics.MslPressureMaximum != null ?
+                    statistics.MslPressureMaximum : DBNull.Value);
 
                 query.ExecuteNonQuery();
             }

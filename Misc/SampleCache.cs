@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Aws.Core
+namespace Aws.Misc
 {
     /// <summary>
-    /// Represents a structure for storing samples taken from the sensors.
+    /// Represents a structure for storing samples taken from each of the sensors.
     /// </summary>
     internal class SampleCache
     {

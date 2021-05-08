@@ -17,7 +17,7 @@ namespace Aws.Core
         /// <summary>
         /// The AWS' configuration data.
         /// </summary>
-        private Configuration config = new Configuration();
+        private readonly Configuration config = new Configuration();
 
         /// <summary>
         /// The clock used for timekeeping and operation triggering.
@@ -40,7 +40,7 @@ namespace Aws.Core
         /// </summary>
         public async Task Startup()
         {
-            LogEvent("Startup ------------");
+            LogMessage("Startup ------------");
 
             try { await config.LoadAsync(); }
             catch (Exception ex)
@@ -67,7 +67,7 @@ namespace Aws.Core
                 //    return;
                 //}
 
-                LogEvent("Clock time is " +
+                LogMessage("Clock time is " +
                     clock.DateTime.ToString("yyyy-MM-dd HH:mm:ss"));
             }
             catch (Exception ex)
@@ -106,7 +106,7 @@ namespace Aws.Core
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                LogEvent("Failed to start clock");
+                LogMessage("Failed to start clock");
                 return;
             }
 
@@ -129,7 +129,7 @@ namespace Aws.Core
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                LogEvent("Failed to create data directory");
+                LogMessage("Failed to create data directory");
                 return false;
             }
 
@@ -141,7 +141,7 @@ namespace Aws.Core
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                LogEvent("Failed to create data database");
+                LogMessage("Failed to create data database");
                 return false;
             }
 
@@ -156,14 +156,14 @@ namespace Aws.Core
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                LogEvent("Failed to create upload database");
+                LogMessage("Failed to create upload database");
                 return false;
             }
 
             return true;
         }
 
-        private void DataLogger_DataLogged(object sender, DataLoggerEventArgs e)
+        private void DataLogger_DataLogged(object sender, DataLoggedEventArgs e)
         {
             // Upload data
         }
