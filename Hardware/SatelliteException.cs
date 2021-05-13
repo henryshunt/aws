@@ -1,9 +1,9 @@
 ﻿using System;
 
-namespace Aws.Misc
+namespace Aws.Hardware
 {
     /// <summary>
-    /// An exception that is thrown by a <see cref="Hardware.Satellite"/> device.
+    /// An exception that is thrown by a <see cref="Satellite"/> device.
     /// </summary>
     internal class SatelliteException : Exception
     {

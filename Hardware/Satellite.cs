@@ -1,5 +1,5 @@
-﻿using Aws.Misc;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
@@ -10,8 +10,13 @@ namespace Aws.Hardware
     /// <summary>
     /// Represents a device that allows for sensors to be placed far away from the main system.
     /// </summary>
-    internal class Satellite
+    internal class Satellite : IDisposable
     {
+        /// <summary>
+        /// The number of milliseconds to wait for a response to a command before timing out.
+        /// </summary>
+        private const int COMMAND_TIMEOUT = 100;
+
         /// <summary>
         /// The number of the USB port the device is connected to. This refers to the directories listed in /sys/bus/
         /// usb/devices. Only ports represented by directories of the form "1-1.X:1.0" are supported, where X is the
@@ -21,14 +26,14 @@ namespace Aws.Hardware
         private readonly int port;
 
         /// <summary>
-        /// The configuration information for the device
+        /// The configuration data for the device
         /// </summary>
         private readonly SatelliteConfiguration config;
 
         /// <summary>
         /// The serial connection to the device.
         /// </summary>
-        private SerialPort device;
+        private SerialPort connection;
 
         /// <summary>
         /// Initialises a new instance of the <see cref="Satellite"/> class.
@@ -40,7 +45,7 @@ namespace Aws.Hardware
         /// ports on the board.
         /// </param>
         /// <param name="config">
-        /// The configuration information for the device.
+        /// The configuration data for the device.
         /// </param>
         public Satellite(int port, SatelliteConfiguration config)
         {
@@ -49,8 +54,11 @@ namespace Aws.Hardware
         }
 
         /// <summary>
-        /// Opens a connection to the device.
+        /// Opens the device.
         /// </summary>
+        /// <exception cref="SatelliteException">
+        /// Thrown if the device is not connected, communication times out, or configuration fails on the device side.
+        /// </exception>
         public void Open()
         {
             // Only USB ports directly on the Raspberry Pi board are supported for now
@@ -65,13 +73,13 @@ namespace Aws.Hardware
             if (devicePath.Length == 0)
                 throw new SatelliteException("Device not connected");
 
-            device = new SerialPort("/dev/" + new FileInfo(devicePath[0]).Name, 115200);
-            device.Open();
+            connection = new SerialPort("/dev/" + new FileInfo(devicePath[0]).Name, 115200);
+            connection.Open();
 
             // Wait for the Arduino to reset after connecting
             Thread.Sleep(2000);
 
-            string response = SendCommand("CONFIG " + config.ToString() + "\n");
+            string response = SendCommand("CONFIG " + config.ToJsonString() + "\n");
 
             if (response == null)
                 throw new SatelliteException("CONFIG command timed out");
@@ -81,11 +89,11 @@ namespace Aws.Hardware
         }
 
         /// <summary>
-        /// Closes the connection to the device.
+        /// Closes the device.
         /// </summary>
         public void Close()
         {
-            device.Close();
+            connection.Close();
         }
 
         /// <summary>
@@ -94,6 +102,9 @@ namespace Aws.Hardware
         /// <returns>
         /// The sampled values.
         /// </returns>
+        /// <exception cref="SatelliteException">
+        /// Thrown if communication times out or sampling fails on the device side.
+        /// </exception>
         public SatelliteSample Sample()
         {
             string response = SendCommand("SAMPLE\n");
@@ -107,8 +118,8 @@ namespace Aws.Hardware
         }
 
         /// <summary>
-        /// Sends a command to the device and waits for a response. Times out if no response is received after 100
-        /// milliseconds.
+        /// Sends a command to the device and waits for a response. Times out if no response is received after
+        /// <see cref="COMMAND_TIMEOUT"/> milliseconds.
         /// </summary>
         /// <param name="command">
         /// The command to send.
@@ -118,8 +129,7 @@ namespace Aws.Hardware
         /// </returns>
         private string SendCommand(string command)
         {
-            device.Write(command);
-
+            connection.Write(command);
             string response = "";
 
             Stopwatch timeout = new Stopwatch();
@@ -127,18 +137,26 @@ namespace Aws.Hardware
 
             while (true)
             {
-                if (device.BytesToRead > 0)
+                if (connection.BytesToRead > 0)
                 {
-                    char readChar = (char)device.ReadChar();
+                    char readChar = (char)connection.ReadChar();
 
                     if (readChar != '\n')
                         response += readChar;
                     else return response;
                 }
 
-                if (timeout.ElapsedMilliseconds >= 100)
+                if (timeout.ElapsedMilliseconds >= COMMAND_TIMEOUT)
                     return null;
             }
+        }
+
+        /// <summary>
+        /// Disposes the device.
+        /// </summary>
+        public void Dispose()
+        {
+            connection.Close();
         }
     }
 }
