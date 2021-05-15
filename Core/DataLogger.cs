@@ -14,19 +14,8 @@ namespace Aws.Core
     /// </summary>
     internal class DataLogger
     {
-        /// <summary>
-        /// The configuration data.
-        /// </summary>
         private readonly Configuration config;
-
-        /// <summary>
-        /// The clock.
-        /// </summary>
         private readonly Clock clock;
-
-        /// <summary>
-        /// The GPIO controller.
-        /// </summary>
         private readonly GpioController gpio;
 
         /// <summary>
@@ -50,19 +39,8 @@ namespace Aws.Core
         private readonly WindMonitor windMonitor = new WindMonitor();
 
         #region Sensors
-        /// <summary>
-        /// The air temperature sensor.
-        /// </summary>
         private Mcp9808 airTempSensor = null;
-
-        /// <summary>
-        /// The BME680 sensor.
-        /// </summary>
         private Bme680 bme680 = null;
-
-        /// <summary>
-        /// The satellite device.
-        /// </summary>
         private Satellite satellite = null;
 
         /// <summary>
@@ -70,9 +48,6 @@ namespace Aws.Core
         /// </summary>
         private DateTime? lastWindSpeedSampleTime = null;
 
-        /// <summary>
-        /// The rainfall sensor.
-        /// </summary>
         private RainwiseRainew111 rainfallSensor = null;
 
         /// <summary>
@@ -369,9 +344,6 @@ namespace Aws.Core
         /// <param name="samples">
         /// A sample cache containing the samples to produce the observation for.
         /// </param>
-        /// <returns>
-        /// The produced observation.
-        /// </returns>
         private Observation GenerateObservation(DateTime time, SampleCache samples)
         {
             Observation observation = new Observation(time);

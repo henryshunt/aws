@@ -55,9 +55,6 @@ namespace Aws.Misc
         /// <param name="humidity">
         /// The relative humidity.
         /// </param>
-        /// <returns>
-        /// The calculated dew point.
-        /// </returns>
         public static double CalculateDewPoint(double temperature, double humidity)
         {
             double ea = (8.082 - temperature / 556.0) * temperature;
@@ -81,9 +78,6 @@ namespace Aws.Misc
         /// <remarks>
         /// Uses the formula from <a href="https://keisan.casio.com/exec/system/1224575267">here</a>.
         /// </remarks>
-        /// <returns>
-        /// The calculated mean sea level pressure.
-        /// </returns>
         public static double CalculateMeanSeaLevelPressure(double pressure, double temperature,
             double elevation)
         {
@@ -98,9 +92,6 @@ namespace Aws.Misc
         /// <param name="vectors">
         /// The list of vectors.
         /// </param>
-        /// <returns>
-        /// The average direction of the list of vectors.
-        /// </returns>
         /// <exception cref="ArgumentException">
         /// Thrown if <paramref name="vectors"/> is empty.
         /// </exception>

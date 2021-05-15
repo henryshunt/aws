@@ -30,9 +30,6 @@ namespace Aws.Hardware
         /// </summary>
         private readonly SatelliteConfiguration config;
 
-        /// <summary>
-        /// The connection to the device.
-        /// </summary>
         private SerialPort serialPort;
 
         /// <summary>
@@ -99,9 +96,6 @@ namespace Aws.Hardware
         /// <summary>
         /// Samples the sensors connected to the device.
         /// </summary>
-        /// <returns>
-        /// The sampled values.
-        /// </returns>
         /// <exception cref="SatelliteException">
         /// Thrown if communication times out or sampling fails on the device side.
         /// </exception>

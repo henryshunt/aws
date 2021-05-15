@@ -15,14 +15,7 @@ namespace Aws.Core
         /// </summary>
         private readonly int sqwPin;
 
-        /// <summary>
-        /// The GPIO controller.
-        /// </summary>
         private readonly GpioController gpio;
-
-        /// <summary>
-        /// The DS3231 real-time clock device.
-        /// </summary>
         private Ds3231 ds3231;
 
         /// <summary>

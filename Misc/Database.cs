@@ -42,7 +42,7 @@ namespace Aws.Misc
         /// The database to connect to.
         /// </param>
         /// <returns>
-        /// A connection to the database.
+        /// The database connection.
         /// </returns>
         public static SqliteConnection Connect(DatabaseFile database)
         {
@@ -143,9 +143,6 @@ namespace Aws.Misc
         /// <param name="timeZone">
         /// The local time zone.
         /// </param>
-        /// <returns>
-        /// The calculated statistics.
-        /// </returns>
         public static DailyStatistics CalculateDailyStatistics(DateTime date, TimeZoneInfo timeZone)
         {
             DateTime start = new DateTime(date.Year, date.Month, date.Day, 0, 1, 0);
