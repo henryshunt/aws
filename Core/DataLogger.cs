@@ -108,7 +108,7 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Opens a connection to each of the sensors enabled in the configuration.
+        /// Opens each of the sensors enabled in the configuration.
         /// </summary>
         /// <returns>
         /// <see langword="false"/> if any of the sensors failed to open, otherwise <see langword="true"/>.

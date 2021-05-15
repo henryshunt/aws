@@ -14,7 +14,7 @@ using static Aws.Misc.Utilities;
 namespace Aws.Core
 {
     /// <summary>
-    /// Represents the configuration data for the AWS system.
+    /// Represents the program's configuration data.
     /// </summary>
     internal class Configuration
     {

@@ -107,7 +107,7 @@ namespace Aws.Misc
         public static double VectorDirectionAverage(List<Vector> vectors)
         {
             if (vectors.Count == 0)
-                throw new ArgumentException(nameof(vectors) + " cannot be empty");
+                throw new ArgumentException(nameof(vectors) + " cannot be empty", nameof(vectors));
 
             List<double> east = new List<double>();
             List<double> north = new List<double>();

@@ -26,14 +26,14 @@ namespace Aws.Hardware
         private readonly int port;
 
         /// <summary>
-        /// The configuration data for the device
+        /// The configuration data for the device.
         /// </summary>
         private readonly SatelliteConfiguration config;
 
         /// <summary>
-        /// The serial connection to the device.
+        /// The connection to the device.
         /// </summary>
-        private SerialPort connection;
+        private SerialPort serialPort;
 
         /// <summary>
         /// Initialises a new instance of the <see cref="Satellite"/> class.
@@ -73,8 +73,8 @@ namespace Aws.Hardware
             if (devicePath.Length == 0)
                 throw new SatelliteException("Device not connected");
 
-            connection = new SerialPort("/dev/" + new FileInfo(devicePath[0]).Name, 115200);
-            connection.Open();
+            serialPort = new SerialPort("/dev/" + new FileInfo(devicePath[0]).Name, 115200);
+            serialPort.Open();
 
             // Wait for the Arduino to reset after connecting
             Thread.Sleep(2000);
@@ -93,7 +93,7 @@ namespace Aws.Hardware
         /// </summary>
         public void Close()
         {
-            connection.Close();
+            serialPort.Close();
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Aws.Hardware
         /// </returns>
         private string SendCommand(string command)
         {
-            connection.Write(command);
+            serialPort.Write(command);
             string response = "";
 
             Stopwatch timeout = new Stopwatch();
@@ -137,9 +137,9 @@ namespace Aws.Hardware
 
             while (true)
             {
-                if (connection.BytesToRead > 0)
+                if (serialPort.BytesToRead > 0)
                 {
-                    char readChar = (char)connection.ReadChar();
+                    char readChar = (char)serialPort.ReadChar();
 
                     if (readChar != '\n')
                         response += readChar;
@@ -156,7 +156,8 @@ namespace Aws.Hardware
         /// </summary>
         public void Dispose()
         {
-            connection.Close();
+            Close();
+            serialPort.Dispose();
         }
     }
 }
