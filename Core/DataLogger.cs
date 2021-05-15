@@ -29,12 +29,12 @@ namespace Aws.Core
         private DateTime startTime;
 
         /// <summary>
-        /// Caches sensor samples taken between the previous and next observation (a duration of one minute).
+        /// Buffers sensor samples taken between the previous and next observation (a duration of one minute).
         /// </summary>
-        private SampleCache sampleCache = new SampleCache();
+        private SampleBuffer sampleBuffer = new SampleBuffer();
 
         /// <summary>
-        /// Caches the past ten minutes of wind samples.
+        /// Buffers the past ten minutes of wind samples.
         /// </summary>
         private readonly WindMonitor windMonitor = new WindMonitor();
 
@@ -223,7 +223,7 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Samples each of the sensors and stores the values in <see cref="sampleCache"/>.
+        /// Samples each of the sensors and stores the values in <see cref="sampleBuffer"/>.
         /// </summary>
         /// <param name="time">
         /// The current time, in UTC.
@@ -232,7 +232,7 @@ namespace Aws.Core
         {
             if (config.IsSensorEnabled(AwsSensor.AirTemperature))
             {
-                try { sampleCache.AirTemperature.Add(airTempSensor.Sample()); }
+                try { sampleBuffer.AirTemperature.Add(airTempSensor.Sample()); }
                 catch { }
             }
 
@@ -241,8 +241,8 @@ namespace Aws.Core
                 try
                 {
                     Tuple<double, double> sample = bme680.Sample();
-                    sampleCache.RelativeHumidity.Add(sample.Item1);
-                    sampleCache.StationPressure.Add(sample.Item2);
+                    sampleBuffer.RelativeHumidity.Add(sample.Item1);
+                    sampleBuffer.StationPressure.Add(sample.Item2);
                 }
                 catch { }
             }
@@ -258,7 +258,7 @@ namespace Aws.Core
                         if (lastWindSpeedSampleTime != null &&
                             lastWindSpeedSampleTime == time - TimeSpan.FromSeconds(1))
                         {
-                            sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
+                            sampleBuffer.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
                                 ((int)sample.WindSpeed) * Inspeed8PulseAnemometer.MS_PER_HZ));
                         }
 
@@ -267,12 +267,12 @@ namespace Aws.Core
 
                     if (sample.WindDirection != null)
                     {
-                        sampleCache.WindDirection.Add(new KeyValuePair<DateTime, double>(
+                        sampleBuffer.WindDirection.Add(new KeyValuePair<DateTime, double>(
                             time, (double)sample.WindDirection));
                     }
 
                     if (sample.SunshineDuration != null)
-                        sampleCache.SunshineDuration.Add((bool)sample.SunshineDuration);
+                        sampleBuffer.SunshineDuration.Add((bool)sample.SunshineDuration);
                 }
                 catch { }
             }
@@ -286,7 +286,7 @@ namespace Aws.Core
                     if (lastRainfallSampleTime != null &&
                         lastRainfallSampleTime == time - TimeSpan.FromSeconds(1))
                     {
-                        sampleCache.Rainfall.Add(rainfall);
+                        sampleBuffer.Rainfall.Add(rainfall);
                     }
 
                     lastRainfallSampleTime = time;
@@ -303,10 +303,10 @@ namespace Aws.Core
         /// </param>
         private void Log(DateTime time)
         {
-            SampleCache samples = sampleCache;
-            sampleCache = new SampleCache();
+            SampleBuffer samples = sampleBuffer;
+            sampleBuffer = new SampleBuffer();
 
-            windMonitor.CacheSamples(time, samples.WindSpeed, samples.WindDirection);
+            windMonitor.BufferSamples(time, samples.WindSpeed, samples.WindDirection);
 
             Observation observation = GenerateObservation(time, samples);
             Database.WriteObservation(observation, DatabaseFile.Data);
@@ -338,15 +338,15 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Produces an observation from the samples in a sample cache and the wind monitor.
+        /// Produces an observation from the samples in a <see cref="SampleBuffer"/> and the wind monitor.
         /// </summary>
         /// <param name="time">
         /// The current time, in UTC.
         /// </param>
         /// <param name="samples">
-        /// A sample cache containing the samples to produce the observation for.
+        /// A <see cref="SampleBuffer"/> containing the samples to produce the observation for.
         /// </param>
-        private Observation GenerateObservation(DateTime time, SampleCache samples)
+        private Observation GenerateObservation(DateTime time, SampleBuffer samples)
         {
             Observation observation = new Observation(time);
 

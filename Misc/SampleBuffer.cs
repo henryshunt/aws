@@ -6,7 +6,7 @@ namespace Aws.Misc
     /// <summary>
     /// Represents a structure for storing samples taken from each of the sensors.
     /// </summary>
-    internal class SampleCache
+    internal class SampleBuffer
     {
         public readonly List<double> AirTemperature = new List<double>();
 
@@ -25,8 +25,8 @@ namespace Aws.Misc
         public readonly List<double> StationPressure = new List<double>();
 
         /// <summary>
-        /// Initialises a new instance of the <see cref="SampleCache"/> class.
+        /// Initialises a new instance of the <see cref="SampleBuffer"/> class.
         /// </summary>
-        public SampleCache() { }
+        public SampleBuffer() { }
     }
 }
