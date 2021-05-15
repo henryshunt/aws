@@ -12,7 +12,7 @@ namespace Aws.Core
     /// <summary>
     /// Represents the subsystem responsible for collecting and logging sensor data.
     /// </summary>
-    internal class DataLogger
+    internal class DataLogger : IDisposable
     {
         private readonly Configuration config;
         private readonly Clock clock;
@@ -161,7 +161,9 @@ namespace Aws.Core
             {
                 try
                 {
-                    rainfallSensor = new RainwiseRainew111(gpio, (int)config.sensors.rainfall.pin);
+                    rainfallSensor = new RainwiseRainew111(
+                        (int)config.sensors.rainfall.pin, gpio);
+
                     rainfallSensor.Open();
                 }
                 catch
@@ -238,9 +240,9 @@ namespace Aws.Core
             {
                 try
                 {
-                    Tuple<double, double, double> sample = bme680.Sample();
-                    sampleCache.RelativeHumidity.Add(sample.Item2);
-                    sampleCache.StationPressure.Add(sample.Item3);
+                    Tuple<double, double> sample = bme680.Sample();
+                    sampleCache.RelativeHumidity.Add(sample.Item1);
+                    sampleCache.StationPressure.Add(sample.Item2);
                 }
                 catch { }
             }
@@ -257,7 +259,7 @@ namespace Aws.Core
                             lastWindSpeedSampleTime == time - TimeSpan.FromSeconds(1))
                         {
                             sampleCache.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
-                                ((int)sample.WindSpeed) * Inspeed8PulseAnemometer.WindSpeedMsPerHz));
+                                ((int)sample.WindSpeed) * Inspeed8PulseAnemometer.MS_PER_HZ));
                         }
 
                         lastWindSpeedSampleTime = time;
@@ -393,6 +395,14 @@ namespace Aws.Core
             }
 
             return observation;
+        }
+
+        public void Dispose()
+        {
+            airTempSensor.Dispose();
+            bme680.Dispose();
+            satellite.Dispose();
+            rainfallSensor.Dispose();
         }
     }
 }

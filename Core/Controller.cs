@@ -163,5 +163,12 @@ namespace Aws.Core
         {
             // Upload data
         }
+
+        private void Shutdown()
+        {
+            clock.StopTickEvents();
+            dataLogger.Dispose();
+            clock.Dispose();
+        }
     }
 }

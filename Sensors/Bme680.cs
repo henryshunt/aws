@@ -6,38 +6,61 @@ using UnitsNet;
 
 namespace Aws.Sensors
 {
-    internal class Bme680
+    /// <summary>
+    /// Represents the BME680 sensor.
+    /// </summary>
+    internal class Bme680 : ISensor
     {
-        private Iot.Device.Bmxx80.Bme680 Device;
-        private double SampleWaitTime;
+        private Iot.Device.Bmxx80.Bme680 bme680;
 
+        /// <summary>
+        /// The number of milliseconds to wait after sampling before retrieving the sample.
+        /// </summary>
+        private int sampleWaitTime;
+
+        /// <summary>
+        /// Initialises a new instance of the <see cref="Bme680"/> class.
+        /// </summary>
+        public Bme680() { }
+
+        /// <summary>
+        /// Opens the sensor.
+        /// </summary>
         public void Open()
         {
-            Device = new Iot.Device.Bmxx80.Bme680(I2cDevice.Create(
-                new I2cConnectionSettings(1, Iot.Device.Bmxx80.Bme680.DefaultI2cAddress)));
-            SampleWaitTime = Device.GetMeasurementDuration(Device.HeaterProfile).Milliseconds;
+            I2cDevice i2c = I2cDevice.Create(
+                new I2cConnectionSettings(1, Iot.Device.Bmxx80.Bme680.DefaultI2cAddress));
+
+            bme680 = new Iot.Device.Bmxx80.Bme680(i2c);
+
+            sampleWaitTime = (int)bme680.GetMeasurementDuration(bme680.HeaterProfile)
+                .Milliseconds;
         }
 
-        public Tuple<double, double, double> Sample()
+        /// <summary>
+        /// Samples the sensor.
+        /// </summary>
+        /// <returns>
+        /// The sampled relative humidity in percent and pressure in hectopascals.
+        /// </returns>
+        public Tuple<double, double> Sample()
         {
-            Device.SetPowerMode(Bme680PowerMode.Forced);
-            Thread.Sleep((int)SampleWaitTime);
+            bme680.SetPowerMode(Bme680PowerMode.Forced);
+            Thread.Sleep(sampleWaitTime);
 
-            Temperature temperature = new Temperature();
-            Device.TryReadTemperature(out temperature);
+            bme680.TryReadHumidity(out RelativeHumidity humidity);
 
-            RelativeHumidity humidity;
-            Device.TryReadHumidity(out humidity);
-            double humidity2 = humidity.Value;
+            // I've had sensors go above 100% humidity, so make sure that doesn't happen
+            double humidity2 = humidity.Value > 100 ? 100 : humidity.Value;
 
-            if (humidity2 > 100)
-                humidity2 = 100;
+            bme680.TryReadPressure(out Pressure pressure);
 
-            Pressure pressure = new Pressure();
-            Device.TryReadPressure(out pressure);
+            return new Tuple<double, double>(humidity2, pressure.Hectopascals);
+        }
 
-            return new Tuple<double, double, double>(temperature.DegreesCelsius, humidity2,
-                pressure.Hectopascals);
+        public void Dispose()
+        {
+            bme680.Dispose();
         }
     }
 }

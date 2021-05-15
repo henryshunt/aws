@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
@@ -10,7 +9,7 @@ namespace Aws.Sensors
     /// <summary>
     /// Represents a device that allows for sensors to be placed far away from the main system.
     /// </summary>
-    internal class Satellite : IDisposable
+    internal class Satellite : ISensor
     {
         /// <summary>
         /// The number of milliseconds to wait for a response to a command before timing out.
@@ -86,14 +85,6 @@ namespace Aws.Sensors
         }
 
         /// <summary>
-        /// Closes the device.
-        /// </summary>
-        public void Close()
-        {
-            serialPort.Close();
-        }
-
-        /// <summary>
         /// Samples the sensors connected to the device.
         /// </summary>
         /// <exception cref="SatelliteException">
@@ -145,12 +136,8 @@ namespace Aws.Sensors
             }
         }
 
-        /// <summary>
-        /// Disposes the device.
-        /// </summary>
         public void Dispose()
         {
-            Close();
             serialPort.Dispose();
         }
     }
