@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace Aws.Hardware
+namespace Aws.Sensors
 {
     /// <summary>
     /// Represents a sample from a <see cref="Satellite"/> device.

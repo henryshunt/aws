@@ -1,4 +1,4 @@
-﻿namespace Aws.Hardware
+﻿namespace Aws.Sensors
 {
     /// <summary>
     /// Represents configuration data for a <see cref="Satellite"/> device.

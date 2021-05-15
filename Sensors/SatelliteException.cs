@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aws.Hardware
+namespace Aws.Sensors
 {
     /// <summary>
     /// An exception that is thrown by a <see cref="Satellite"/> device.

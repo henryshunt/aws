@@ -4,7 +4,7 @@ using System.Device.I2c;
 using System.Threading;
 using UnitsNet;
 
-namespace Aws.Hardware
+namespace Aws.Sensors
 {
     internal class Bme680
     {

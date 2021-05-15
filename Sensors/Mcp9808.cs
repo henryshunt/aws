@@ -1,6 +1,6 @@
 ﻿using System.Device.I2c;
 
-namespace Aws.Hardware
+namespace Aws.Sensors
 {
     internal class Mcp9808
     {

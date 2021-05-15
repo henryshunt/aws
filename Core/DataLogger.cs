@@ -1,4 +1,4 @@
-﻿using Aws.Hardware;
+﻿using Aws.Sensors;
 using Aws.Misc;
 using System;
 using System.Collections.Generic;

@@ -1,4 +1,4 @@
-﻿namespace Aws.Hardware
+﻿namespace Aws.Sensors
 {
     internal class Inspeed8PulseAnemometer
     {

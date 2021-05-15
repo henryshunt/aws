@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Device.Gpio;
 
-namespace Aws.Hardware
+namespace Aws.Sensors
 {
     internal class RainwiseRainew111
     {

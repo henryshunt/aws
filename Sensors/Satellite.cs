@@ -5,7 +5,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Threading;
 
-namespace Aws.Hardware
+namespace Aws.Sensors
 {
     /// <summary>
     /// Represents a device that allows for sensors to be placed far away from the main system.
