@@ -60,13 +60,6 @@ namespace Aws.Core
                 clock = new Clock(config.clockTickPin, gpio);
                 clock.Open();
 
-                //if (!clock.IsDateTimeValid)
-                //{
-                //    gpio.Write(config.errorLedPin, PinValue.High);
-                //    Helpers.LogEvent(null, nameof(Controller), "Clock time is invalid");
-                //    return;
-                //}
-
                 LogMessage("Clock time is " +
                     clock.DateTime.ToString("yyyy-MM-dd HH:mm:ss"));
             }
@@ -102,7 +95,10 @@ namespace Aws.Core
             gpio.Write(config.errorLedPin, PinValue.Low);
             Thread.Sleep(1500);
 
-            try { clock.Start(); }
+            try
+            {
+                clock.StartTickEvents();
+            }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
