@@ -19,6 +19,11 @@ namespace Aws.Core
         private readonly GpioController gpio;
 
         /// <summary>
+        /// Indicates whether the data logger is open.
+        /// </summary>
+        public bool IsOpen { get; private set; } = false;
+
+        /// <summary>
         /// Indicates whether the data logger has started sampling from the sensors.
         /// </summary>
         private bool isSampling = false;
@@ -83,13 +88,20 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Opens each of the sensors enabled in the configuration.
+        /// Opens the data logger.
         /// </summary>
         /// <returns>
         /// <see langword="false"/> if any of the sensors failed to open, otherwise <see langword="true"/>.
         /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the demodulator is already open.
+        /// </exception>
         public bool Open()
         {
+            if (IsOpen)
+                throw new InvalidOperationException("The data logger is already open");
+            IsOpen = true;
+
             bool success = true;
 
             if (config.IsSensorEnabled(AwsSensor.AirTemperature))
@@ -177,8 +189,26 @@ namespace Aws.Core
             return success;
         }
 
-        public void Clock_Ticked(object sender, ClockTickedEventArgs e)
+        /// <summary>
+        /// Closes the data logger.
+        /// </summary>
+        public void Close()
         {
+            airTempSensor?.Dispose();
+            bme680?.Dispose();
+            satellite?.Dispose();
+            rainfallSensor?.Dispose();
+            IsOpen = false;
+        }
+
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the data logger is not open.
+        /// </exception>
+        private void Clock_Ticked(object sender, ClockTickedEventArgs e)
+        {
+            if (!IsOpen)
+                throw new InvalidOperationException("The data logger is not open");
+
             if (!isSampling)
             {
                 if (e.Time.Second == 0)
@@ -397,12 +427,6 @@ namespace Aws.Core
             return observation;
         }
 
-        public void Dispose()
-        {
-            airTempSensor.Dispose();
-            bme680.Dispose();
-            satellite.Dispose();
-            rainfallSensor.Dispose();
-        }
+        public void Dispose() => Close();
     }
 }

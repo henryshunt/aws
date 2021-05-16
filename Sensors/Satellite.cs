@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
@@ -9,7 +10,7 @@ namespace Aws.Sensors
     /// <summary>
     /// Represents a device that allows for sensors to be placed far away from the main system.
     /// </summary>
-    internal class Satellite : ISensor
+    internal class Satellite : Sensor
     {
         /// <summary>
         /// The number of milliseconds to wait for a response to a command before timing out.
@@ -52,11 +53,18 @@ namespace Aws.Sensors
         /// <summary>
         /// Opens the device.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the demodulator is already open.
+        /// </exception>
         /// <exception cref="SatelliteException">
         /// Thrown if the device is not connected, communication times out, or configuration fails on the device side.
         /// </exception>
-        public void Open()
+        public override void Open()
         {
+            if (IsOpen)
+                throw new InvalidOperationException("The sensor is already open");
+            IsOpen = true;
+
             // Only USB ports directly on the Raspberry Pi board are supported for now
             string portPath = string.Format("/sys/bus/usb/devices/1-1.{0}:1.0", port);
 
@@ -84,14 +92,26 @@ namespace Aws.Sensors
                 throw new SatelliteException("CONFIG command failed");
         }
 
+        public override void Close()
+        {
+            serialPort?.Dispose();
+            IsOpen = false;
+        }
+
         /// <summary>
         /// Samples the sensors connected to the device.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the sensor is not open.
+        /// </exception>
         /// <exception cref="SatelliteException">
         /// Thrown if communication times out or sampling fails on the device side.
         /// </exception>
         public SatelliteSample Sample()
         {
+            if (!IsOpen)
+                throw new InvalidOperationException("The sensor is not open");
+
             string response = SendCommand("SAMPLE\n");
 
             if (response == null)
@@ -134,11 +154,6 @@ namespace Aws.Sensors
                 if (timeout.ElapsedMilliseconds >= COMMAND_TIMEOUT)
                     return null;
             }
-        }
-
-        public void Dispose()
-        {
-            serialPort.Dispose();
         }
     }
 }

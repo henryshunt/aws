@@ -9,7 +9,7 @@ namespace Aws.Sensors
     /// <summary>
     /// Represents the BME680 sensor.
     /// </summary>
-    internal class Bme680 : ISensor
+    internal class Bme680 : Sensor
     {
         private Iot.Device.Bmxx80.Bme680 bme680;
 
@@ -26,8 +26,15 @@ namespace Aws.Sensors
         /// <summary>
         /// Opens the sensor.
         /// </summary>
-        public void Open()
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the sensor is already open.
+        /// </exception>
+        public override void Open()
         {
+            if (IsOpen)
+                throw new InvalidOperationException("The sensor is already open");
+            IsOpen = true;
+
             I2cDevice i2c = I2cDevice.Create(
                 new I2cConnectionSettings(1, Iot.Device.Bmxx80.Bme680.DefaultI2cAddress));
 
@@ -37,14 +44,26 @@ namespace Aws.Sensors
                 .Milliseconds;
         }
 
+        public override void Close()
+        {
+            bme680?.Dispose();
+            IsOpen = false;
+        }
+
         /// <summary>
         /// Samples the sensor.
         /// </summary>
         /// <returns>
-        /// The sampled relative humidity in percent and pressure in hectopascals.
+        /// The sampled relative humidity and pressure, in percent and hectopascals respectively.
         /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the sensor is not open.
+        /// </exception>
         public Tuple<double, double> Sample()
         {
+            if (!IsOpen)
+                throw new InvalidOperationException("The sensor is not open");
+
             bme680.SetPowerMode(Bme680PowerMode.Forced);
             Thread.Sleep(sampleWaitTime);
 
@@ -56,11 +75,6 @@ namespace Aws.Sensors
             bme680.TryReadPressure(out Pressure pressure);
 
             return new Tuple<double, double>(humidity2, pressure.Hectopascals);
-        }
-
-        public void Dispose()
-        {
-            bme680.Dispose();
         }
     }
 }
