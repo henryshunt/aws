@@ -68,7 +68,8 @@ namespace Aws.Sensors
         /// Samples the sensor.
         /// </summary>
         /// <returns>
-        /// The amount of rainfall since the last sample, in millimetres.
+        /// The amount of rainfall since the last sample or, if this is the first sample, since the sensor was opened,
+        /// in millimetres.
         /// </returns>
         /// <exception cref="InvalidOperationException">
         /// Thrown if the sensor is not open.

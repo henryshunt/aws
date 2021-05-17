@@ -97,7 +97,7 @@ namespace Aws.Core
 
             try
             {
-                clock.StartTickEvents();
+                clock.EnableTickEvents();
             }
             catch
             {
@@ -166,7 +166,7 @@ namespace Aws.Core
 
         private void Shutdown()
         {
-            clock.StopTickEvents();
+            clock.DisableTickEvents();
             dataLogger.Dispose();
             clock.Dispose();
         }
