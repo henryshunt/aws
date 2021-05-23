@@ -43,6 +43,21 @@ namespace Aws.Misc
         public double? RelativeHumidityMaximum { get; set; } = null;
 
         /// <summary>
+        /// The average dew point for the day, in degrees celsius.
+        /// </summary>
+        public double? DewPointAverage { get; set; } = null;
+
+        /// <summary>
+        /// The minimum dew point for the day, in degrees celsius.
+        /// </summary>
+        public double? DewPointMinimum { get; set; } = null;
+
+        /// <summary>
+        /// The maximum dew point for the day, in degrees celsius.
+        /// </summary>
+        public double? DewPointMaximum { get; set; } = null;
+
+        /// <summary>
         /// The average ten-minute wind speed for the day, in metres per second.
         /// </summary>
         public double? WindSpeedAverage { get; set; } = null;

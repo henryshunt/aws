@@ -70,10 +70,10 @@ namespace Aws.Misc
 
             string dayStatsSql = "CREATE TABLE dayStats(" +
                 "date TEXT PRIMARY KEY NOT NULL{0}, airTempAvg REAL, airTempMin REAL, airTempMax REAL, " +
-                "relHumAvg REAL, relHumMin REAL, relHumMax REAL, windSpeedAvg REAL, windSpeedMin REAL, " +
-                "windSpeedMax REAL, windDirAvg INTEGER, windGustAvg REAL, windGustMin REAL, " +
-                "windGustMax REAL, rainfallTtl REAL, sunDurTtl INTEGER, mslPresAvg REAL, " +
-                "mslPresMin REAL, mslPresMax REAL)";
+                "relHumAvg REAL, relHumMin REAL, relHumMax REAL, dewPointAvg REAL, dewPointMin REAL, " +
+                "dewPointMax REAL, windSpeedAvg REAL, windSpeedMin REAL, windSpeedMax REAL, " +
+                "windDirAvg INTEGER, windGustAvg REAL, windGustMin REAL, windGustMax REAL, " +
+                "rainfallTtl REAL, sunDurTtl INTEGER, mslPresAvg REAL, mslPresMin REAL, mslPresMax REAL)";
 
             // Random column is used to identify when a record has been updated
             if (database == DatabaseFile.Upload)
@@ -152,9 +152,10 @@ namespace Aws.Misc
             end = TimeZoneInfo.ConvertTimeToUtc(end, timeZone);
 
             const string sql = "SELECT ROUND(AVG(airTemp), 1), MIN(airTemp), MAX(airTemp), " +
-                "ROUND(AVG(relHum), 1), MIN(relHum), MAX(relHum), ROUND(AVG(windSpeed), 1), " +
-                "MIN(windSpeed), MAX(windSpeed), ROUND(AVG(windGust), 1), MIN(windGust), MAX(windGust), " +
-                "SUM(rainfall), SUM(sunDur), ROUND(AVG(mslPres), 1), MIN(mslPres), MAX(mslPres) " +
+                "ROUND(AVG(relHum), 1), MIN(relHum), MAX(relHum), ROUND(AVG(dewPoint), 1), MIN(dewPoint), " +
+                "MAX(dewPoint), ROUND(AVG(windSpeed), 1), MIN(windSpeed), MAX(windSpeed), " +
+                "ROUND(AVG(windGust), 1), MIN(windGust), MAX(windGust), SUM(rainfall), SUM(sunDur), " +
+                "ROUND(AVG(mslPres), 1), MIN(mslPres), MAX(mslPres) " +
                 "FROM observations WHERE time BETWEEN @start AND @end";
 
             using (SqliteConnection connection = Connect(DatabaseFile.Data))
@@ -177,23 +178,26 @@ namespace Aws.Misc
                         RelativeHumidityAverage = !reader.IsDBNull(3) ? reader.GetDouble(3) : null,
                         RelativeHumidityMinimum = !reader.IsDBNull(4) ? reader.GetDouble(4) : null,
                         RelativeHumidityMaximum = !reader.IsDBNull(5) ? reader.GetDouble(5) : null,
-                        WindSpeedAverage = !reader.IsDBNull(6) ? reader.GetDouble(6) : null,
-                        WindSpeedMinimum = !reader.IsDBNull(7) ? reader.GetDouble(7) : null,
-                        WindSpeedMaximum = !reader.IsDBNull(8) ? reader.GetDouble(8) : null,
+                        DewPointAverage = !reader.IsDBNull(6) ? reader.GetDouble(6) : null,
+                        DewPointMinimum = !reader.IsDBNull(7) ? reader.GetDouble(7) : null,
+                        DewPointMaximum = !reader.IsDBNull(8) ? reader.GetDouble(8) : null,
+                        WindSpeedAverage = !reader.IsDBNull(9) ? reader.GetDouble(9) : null,
+                        WindSpeedMinimum = !reader.IsDBNull(10) ? reader.GetDouble(10) : null,
+                        WindSpeedMaximum = !reader.IsDBNull(11) ? reader.GetDouble(11) : null,
 
                         // Need to manually calculate average wind direction because Microsoft.Data.Sqlite
                         // doesn't implement the required functions and I couldn't get System.Data.SQLite
                         // to work on the linux-arm platform
                         WindDirectionAverage = CalculateAverageWindDirection(connection, start, end),
 
-                        WindGustAverage = !reader.IsDBNull(9) ? reader.GetDouble(9) : null,
-                        WindGustMinimum = !reader.IsDBNull(10) ? reader.GetDouble(10) : null,
-                        WindGustMaximum = !reader.IsDBNull(11) ? reader.GetDouble(11) : null,
-                        RainfallTotal = !reader.IsDBNull(12) ? reader.GetDouble(12) : null,
-                        SunshineDurationTotal = !reader.IsDBNull(13) ? reader.GetInt32(13) : null,
-                        MslPressureAverage = !reader.IsDBNull(14) ? reader.GetDouble(14) : null,
-                        MslPressureMinimum = !reader.IsDBNull(15) ? reader.GetDouble(15) : null,
-                        MslPressureMaximum = !reader.IsDBNull(16) ? reader.GetDouble(16) : null,
+                        WindGustAverage = !reader.IsDBNull(12) ? reader.GetDouble(12) : null,
+                        WindGustMinimum = !reader.IsDBNull(13) ? reader.GetDouble(13) : null,
+                        WindGustMaximum = !reader.IsDBNull(14) ? reader.GetDouble(14) : null,
+                        RainfallTotal = !reader.IsDBNull(15) ? reader.GetDouble(15) : null,
+                        SunshineDurationTotal = !reader.IsDBNull(16) ? reader.GetInt32(16) : null,
+                        MslPressureAverage = !reader.IsDBNull(17) ? reader.GetDouble(17) : null,
+                        MslPressureMinimum = !reader.IsDBNull(18) ? reader.GetDouble(18) : null,
+                        MslPressureMaximum = !reader.IsDBNull(19) ? reader.GetDouble(19) : null,
                     };
                 }
             }
@@ -254,10 +258,12 @@ namespace Aws.Misc
         {
             string sql = "INSERT INTO dayStats VALUES (" +
                 "@date{0}, @airTempAvg, @airTempMin, @airTempMax, @relHumAvg, @relHumMin, @relHumMax, " +
-                "@windSpeedAvg, @windSpeedMin, @windSpeedMax, @windDirAvg, @windGustAvg, @windGustMin, " +
-                "@windGustMax, @rainfallTtl, @sunDurTtl, @mslPresAvg, @mslPresMin, @mslPresMax) " +
+                "@dewPointAvg, @dewPointMin, @dewPointMax, @windSpeedAvg, @windSpeedMin, @windSpeedMax, " +
+                "@windDirAvg, @windGustAvg, @windGustMin, @windGustMax, @rainfallTtl, @sunDurTtl, " +
+                "@mslPresAvg, @mslPresMin, @mslPresMax) " +
                 "ON CONFLICT (date) DO UPDATE SET " +
                 "{1}airTempAvg = @airTempAvg, airTempMin = @airTempMin, airTempMax = @airTempMax, " +
+                "dewPointAvg = @dewPointAvg, dewPointMin = @dewPointMin, dewPointMax = @dewPointMax, " +
                 "relHumAvg = @relHumAvg, relHumMin = @relHumMin, relHumMax = @relHumMax, " +
                 "windSpeedAvg = @windSpeedAvg, windSpeedMin = @windSpeedMin, windSpeedMax = @windSpeedMax, " +
                 "windDirAvg = @windDirAvg, windGustAvg = @windGustAvg, windGustMin = @windGustMin, " +
@@ -292,6 +298,13 @@ namespace Aws.Misc
                     statistics.RelativeHumidityMinimum : DBNull.Value);
                 query.Parameters.AddWithValue("@relHumMax", statistics.RelativeHumidityMaximum != null ?
                     statistics.RelativeHumidityMaximum : DBNull.Value);
+
+                query.Parameters.AddWithValue("@dewPointAvg", statistics.DewPointAverage != null ?
+                    statistics.DewPointAverage : DBNull.Value);
+                query.Parameters.AddWithValue("@dewPointMin", statistics.DewPointMinimum != null ?
+                    statistics.DewPointMinimum : DBNull.Value);
+                query.Parameters.AddWithValue("@dewPointMax", statistics.DewPointMaximum != null ?
+                    statistics.DewPointMaximum : DBNull.Value);
 
                 query.Parameters.AddWithValue("@windSpeedAvg", statistics.WindSpeedAverage != null ?
                     statistics.WindSpeedAverage : DBNull.Value);
