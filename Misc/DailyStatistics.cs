@@ -3,12 +3,12 @@
 namespace Aws.Misc
 {
     /// <summary>
-    /// Represents statistics for the observations logged over a day in the local time zone.
+    /// Represents statistics for the observations logged over a day.
     /// </summary>
     internal class DailyStatistics
     {
         /// <summary>
-        /// The date, in the local time zone, that the statistics cover.
+        /// The date of the day that the statistics cover.
         /// </summary>
         public DateTime Date { get; set; }
 
@@ -121,7 +121,7 @@ namespace Aws.Misc
         /// Initialises a new instance of the <see cref="DailyStatistics"/> class.
         /// </summary>
         /// <param name="date">
-        /// The date, in the local time zone, that the statistics cover.
+        /// The date of the day that the statistics cover.
         /// </param>
         public DailyStatistics(DateTime date)
         {

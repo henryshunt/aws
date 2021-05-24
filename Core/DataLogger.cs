@@ -235,12 +235,24 @@ namespace Aws.Core
                 {
                     gpio.Write(config.errorLedPin, PinValue.Low);
 
-                    try { Log(e.Time); }
+                    try
+                    {
+                        Log(e.Time);
+                    }
                     catch (Exception ex)
                     {
                         gpio.Write(config.errorLedPin, PinValue.High);
                         LogException(ex);
                         return;
+                    }
+
+                    try
+                    {
+                        WriteStatistics(e.Time);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogException(ex);
                     }
 
                     gpio.Write(config.dataLedPin, PinValue.High);
@@ -326,7 +338,8 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// The logging routine. Produces and logs an observation, and generates and logs statistics.
+        /// Logs an observation for the samples in <see cref="sampleBuffer"/>, and empties
+        /// <see cref="sampleBuffer"/>.
         /// </summary>
         /// <param name="time">
         /// The current time, in UTC.
@@ -338,46 +351,6 @@ namespace Aws.Core
 
             windMonitor.BufferSamples(time, samples.WindSpeed, samples.WindDirection);
 
-            Observation observation = GenerateObservation(time, samples);
-            Database.WriteObservation(observation, DatabaseFile.Data);
-
-            if ((bool)config.uploader.upload)
-                Database.WriteObservation(observation, DatabaseFile.Upload);
-
-            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.position.timeZone);
-
-            // At the start of a new day, recalculate the previous day's statistics because they
-            // need to include the observation from 00:00:00 of the new day
-            if (local.Hour == 0 && local.Minute == 0)
-            {
-                DateTime local2 = local - TimeSpan.FromMinutes(1);
-                DailyStatistics statistics2 = Database.CalculateDailyStatistics(local2,
-                    config.position.timeZone);
-
-                Database.WriteDailyStatistics(statistics2, DatabaseFile.Data);
-                if ((bool)config.uploader.upload)
-                    Database.WriteDailyStatistics(statistics2, DatabaseFile.Upload);
-            }
-
-            DailyStatistics statistics = Database.CalculateDailyStatistics(local,
-                config.position.timeZone);
-
-            Database.WriteDailyStatistics(statistics, DatabaseFile.Data);
-            if ((bool)config.uploader.upload)
-                Database.WriteDailyStatistics(statistics, DatabaseFile.Upload);
-        }
-
-        /// <summary>
-        /// Produces an observation from the samples in a <see cref="SampleBuffer"/> and the wind monitor.
-        /// </summary>
-        /// <param name="time">
-        /// The current time, in UTC.
-        /// </param>
-        /// <param name="samples">
-        /// A <see cref="SampleBuffer"/> containing the samples to produce the observation for.
-        /// </param>
-        private Observation GenerateObservation(DateTime time, SampleBuffer samples)
-        {
             Observation observation = new Observation(time);
 
             if (samples.AirTemperature.Count > 0)
@@ -424,7 +397,62 @@ namespace Aws.Core
                 observation.MslPressure = Math.Round(mslp, 1);
             }
 
-            return observation;
+            Database.WriteObservation(observation, DatabaseFile.Data);
+
+            if ((bool)config.uploader.upload)
+                Database.WriteObservation(observation, DatabaseFile.Upload);
+        }
+
+        /// <summary>
+        /// Calculates and writes various statistics over various time periods.
+        /// </summary>
+        /// <param name="time">
+        /// The current time, in UTC.
+        /// </param>
+        private void WriteStatistics(DateTime time)
+        {
+            DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.position.timeZone);
+
+            // At the start of a new day, recalculate the previous day's statistics because they
+            // need to include the observation from 00:00:00 of the new day
+            if (local.Hour == 0 && local.Minute == 0)
+            {
+                DateTime local2 = local - TimeSpan.FromMinutes(1);
+                DailyStatistics statistics1 = Database.CalculateDailyStatistics(local2,
+                    config.position.timeZone);
+
+                Database.WriteDailyStatistics(statistics1, DatabaseFile.Data);
+                if ((bool)config.uploader.upload)
+                    Database.WriteDailyStatistics(statistics1, DatabaseFile.Upload);
+            }
+
+            DailyStatistics statistics2 = Database.CalculateDailyStatistics(local,
+                config.position.timeZone);
+
+            Database.WriteDailyStatistics(statistics2, DatabaseFile.Data);
+            if ((bool)config.uploader.upload)
+                Database.WriteDailyStatistics(statistics2, DatabaseFile.Upload);
+
+
+            // At the start of a new month, recalculate the previous month's statistics because
+            // they need to include the observation from 00:00:00 of the new month's first day
+            if (local.Day == 1 && local.Hour == 0 && local.Minute == 0)
+            {
+                DateTime local2 = local - TimeSpan.FromMinutes(1);
+                MonthlyStatistics statistics1 = Database.CalculateMonthlyStatistics(local2.Year,
+                    local2.Month, config.position.timeZone);
+
+                Database.WriteMonthlyStatistics(statistics1, DatabaseFile.Data);
+                if ((bool)config.uploader.upload)
+                    Database.WriteMonthlyStatistics(statistics1, DatabaseFile.Upload);
+            }
+
+            MonthlyStatistics statistics3 = Database.CalculateMonthlyStatistics(local.Year,
+                    local.Month, config.position.timeZone);
+
+            Database.WriteMonthlyStatistics(statistics3, DatabaseFile.Data);
+            if ((bool)config.uploader.upload)
+                Database.WriteMonthlyStatistics(statistics3, DatabaseFile.Upload);
         }
 
         public void Dispose() => Close();
