@@ -68,7 +68,7 @@ namespace Aws.Misc
                 "windSpeed REAL, windDir INTEGER, windGust REAL, rainfall REAL, sunDur INTEGER, " +
                 "staPres REAL, mslPres REAL)";
 
-            string dayStatsSql = "CREATE TABLE dayStats (" +
+            string dailyStatsSql = "CREATE TABLE dailyStats (" +
                 "date TEXT PRIMARY KEY NOT NULL{0}, airTempAvg REAL, airTempMin REAL, airTempMax REAL, " +
                 "relHumAvg REAL, relHumMin REAL, relHumMax REAL, dewPointAvg REAL, dewPointMin REAL, " +
                 "dewPointMax REAL, windSpeedAvg REAL, windSpeedMin REAL, windSpeedMax REAL, " +
@@ -86,12 +86,12 @@ namespace Aws.Misc
             // Random column is used to identify when a record has been updated
             if (database == DatabaseFile.Upload)
             {
-                dayStatsSql = string.Format(dayStatsSql, ", random INTEGER NOT NULL");
+                dailyStatsSql = string.Format(dailyStatsSql, ", random INTEGER NOT NULL");
                 monthlyStatsSql = string.Format(monthlyStatsSql, ", random INTEGER NOT NULL");
             }
             else
             {
-                dayStatsSql = string.Format(dayStatsSql, "");
+                dailyStatsSql = string.Format(dailyStatsSql, "");
                 monthlyStatsSql = string.Format(monthlyStatsSql, "");
             }
 
@@ -99,7 +99,7 @@ namespace Aws.Misc
             {
                 connection.Open();
                 new SqliteCommand(observationsSql, connection).ExecuteNonQuery();
-                new SqliteCommand(dayStatsSql, connection).ExecuteNonQuery();
+                new SqliteCommand(dailyStatsSql, connection).ExecuteNonQuery();
                 new SqliteCommand(monthlyStatsSql, connection).ExecuteNonQuery();
             }
         }
@@ -346,7 +346,7 @@ namespace Aws.Misc
         /// </param>
         public static void WriteDailyStatistics(DailyStatistics statistics, DatabaseFile database)
         {
-            string sql = "INSERT INTO dayStats VALUES (" +
+            string sql = "INSERT INTO dailyStats VALUES (" +
                 "@date{0}, @airTempAvg, @airTempMin, @airTempMax, @relHumAvg, @relHumMin, @relHumMax, " +
                 "@dewPointAvg, @dewPointMin, @dewPointMax, @windSpeedAvg, @windSpeedMin, @windSpeedMax, " +
                 "@windDirAvg, @windGustAvg, @windGustMin, @windGustMax, @rainfallTtl, @sunDurTtl, " +
