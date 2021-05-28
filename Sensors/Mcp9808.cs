@@ -4,7 +4,7 @@ using System.Device.I2c;
 namespace Aws.Sensors
 {
     /// <summary>
-    /// Represents the MCP9808 sensor.
+    /// Represents an MCP9808 temperature sensor.
     /// </summary>
     internal class Mcp9808 : Sensor
     {
@@ -27,10 +27,10 @@ namespace Aws.Sensors
                 throw new InvalidOperationException("The sensor is already open");
             IsOpen = true;
 
-            I2cDevice i2c = I2cDevice.Create(
+            I2cDevice i2cDevice = I2cDevice.Create(
                new I2cConnectionSettings(1, Iot.Device.Mcp9808.Mcp9808.DefaultI2cAddress));
 
-            mcp9808 = new Iot.Device.Mcp9808.Mcp9808(i2c);
+            mcp9808 = new Iot.Device.Mcp9808.Mcp9808(i2cDevice);
         }
 
         public override void Close()

@@ -45,6 +45,7 @@ namespace Aws.Core
 
         #region Sensors
         private Mcp9808 airTempSensor = null;
+        private Htu21d relHumSensor = null;
         private Bme680 bme680 = null;
         private Satellite satellite = null;
 
@@ -115,6 +116,21 @@ namespace Aws.Core
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
                     LogMessage("Failed to open airTemp sensor");
+                    success = false;
+                }
+            }
+
+            if (config.IsSensorEnabled(AwsSensor.RelativeHumidity))
+            {
+                try
+                {
+                    relHumSensor = new Htu21d();
+                    relHumSensor.Open();
+                }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    LogMessage("Failed to open relHum sensor");
                     success = false;
                 }
             }
@@ -195,6 +211,7 @@ namespace Aws.Core
         public void Close()
         {
             airTempSensor?.Dispose();
+            relHumSensor?.Dispose();
             bme680?.Dispose();
             satellite?.Dispose();
             rainfallSensor?.Dispose();
@@ -274,19 +291,38 @@ namespace Aws.Core
         {
             if (config.IsSensorEnabled(AwsSensor.AirTemperature))
             {
-                try { sampleBuffer.AirTemperature.Add(airTempSensor.Sample()); }
-                catch { }
+                try
+                {
+                    sampleBuffer.AirTemperature.Add(airTempSensor.Sample());
+                }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                }
+            }
+
+            if (config.IsSensorEnabled(AwsSensor.RelativeHumidity))
+            {
+                try
+                {
+                    sampleBuffer.RelativeHumidity.Add(relHumSensor.Sample());
+                }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                }
             }
 
             if (config.IsSensorEnabled(AwsSensor.Bme680))
             {
                 try
                 {
-                    Tuple<double, double> sample = bme680.Sample();
-                    sampleBuffer.RelativeHumidity.Add(sample.Item1);
-                    sampleBuffer.StationPressure.Add(sample.Item2);
+                    sampleBuffer.StationPressure.Add(bme680.Sample().Item2);
                 }
-                catch { }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                }
             }
 
             if (config.IsSensorEnabled(AwsSensor.Satellite))
@@ -316,7 +352,10 @@ namespace Aws.Core
                     if (sample.SunshineDuration != null)
                         sampleBuffer.SunshineDuration.Add((bool)sample.SunshineDuration);
                 }
-                catch { }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                }
             }
 
             if (config.IsSensorEnabled(AwsSensor.Rainfall))
@@ -333,7 +372,10 @@ namespace Aws.Core
 
                     lastRainfallSampleTime = time;
                 }
-                catch { }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                }
             }
         }
 

@@ -6,6 +6,7 @@
     internal enum AwsSensor
     {
         AirTemperature,
+        RelativeHumidity,
         Bme680,
         Satellite,
         WindSpeed,

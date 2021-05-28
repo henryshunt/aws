@@ -1,7 +1,7 @@
 ﻿namespace Aws.Sensors
 {
     /// <summary>
-    /// Represents the Inspeed 8-pulse anemometer sensor.
+    /// Represents an Inspeed 8-Pulse Anemometer sensor.
     /// </summary>
     internal class Inspeed8PulseAnemometer
     {

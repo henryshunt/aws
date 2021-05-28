@@ -35,10 +35,10 @@ namespace Aws.Sensors
                 throw new InvalidOperationException("The sensor is already open");
             IsOpen = true;
 
-            I2cDevice i2c = I2cDevice.Create(
+            I2cDevice i2cDevice = I2cDevice.Create(
                 new I2cConnectionSettings(1, Iot.Device.Bmxx80.Bme680.DefaultI2cAddress));
 
-            bme680 = new Iot.Device.Bmxx80.Bme680(i2c);
+            bme680 = new Iot.Device.Bmxx80.Bme680(i2cDevice);
 
             sampleWaitTime = (int)bme680.GetMeasurementDuration(bme680.HeaterProfile)
                 .Milliseconds;

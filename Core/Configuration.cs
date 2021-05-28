@@ -95,6 +95,8 @@ namespace Aws.Core
             {
                 case AwsSensor.AirTemperature:
                     return sensorsDict.ContainsKey("airTemp");
+                case AwsSensor.RelativeHumidity:
+                    return sensorsDict.ContainsKey("relHum");
                 case AwsSensor.Bme680:
                     return sensorsDict.ContainsKey("bme680");
                 case AwsSensor.Satellite:

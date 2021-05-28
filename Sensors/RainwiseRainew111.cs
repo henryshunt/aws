@@ -5,7 +5,7 @@ using System.Threading;
 namespace Aws.Sensors
 {
     /// <summary>
-    /// Represents the Rainwise Rainew 111 sensor.
+    /// Represents a Rainwise Rainew 111 sensor.
     /// </summary>
     internal class RainwiseRainew111 : Sensor
     {
