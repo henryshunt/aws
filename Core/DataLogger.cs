@@ -1,5 +1,5 @@
-﻿using Aws.Sensors;
-using Aws.Misc;
+﻿using Aws.Misc;
+using Aws.Sensors;
 using System;
 using System.Collections.Generic;
 using System.Device.Gpio;
@@ -289,94 +289,103 @@ namespace Aws.Core
         /// </param>
         private void Sample(DateTime time)
         {
-            if (config.IsSensorEnabled(AwsSensor.AirTemperature))
-            {
-                try
-                {
-                    sampleBuffer.AirTemperature.Add(airTempSensor.Sample());
-                }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                }
-            }
+            List<Thread> threads = new List<Thread>();
 
-            if (config.IsSensorEnabled(AwsSensor.RelativeHumidity))
+            threads.Add(new Thread(() =>
             {
-                try
+                if (config.IsSensorEnabled(AwsSensor.AirTemperature))
                 {
-                    sampleBuffer.RelativeHumidity.Add(relHumSensor.Sample());
-                }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                }
-            }
-
-            if (config.IsSensorEnabled(AwsSensor.Bme680))
-            {
-                try
-                {
-                    sampleBuffer.StationPressure.Add(bme680.Sample().Item2);
-                }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                }
-            }
-
-            if (config.IsSensorEnabled(AwsSensor.Satellite))
-            {
-                try
-                {
-                    SatelliteSample sample = satellite.Sample();
-
-                    if (sample.WindSpeed != null)
+                    try
                     {
-                        if (lastWindSpeedSampleTime != null &&
-                            lastWindSpeedSampleTime == time - TimeSpan.FromSeconds(1))
+                        sampleBuffer.AirTemperature.Add(airTempSensor.Sample());
+                    }
+                    catch { gpio.Write(config.errorLedPin, PinValue.High); }
+                }
+
+                if (config.IsSensorEnabled(AwsSensor.RelativeHumidity))
+                {
+                    try
+                    {
+                        sampleBuffer.RelativeHumidity.Add(relHumSensor.Sample());
+                    }
+                    catch { gpio.Write(config.errorLedPin, PinValue.High); }
+                }
+
+                if (config.IsSensorEnabled(AwsSensor.Bme680))
+                {
+                    try
+                    {
+                        sampleBuffer.StationPressure.Add(bme680.Sample().Item2);
+                    }
+                    catch { gpio.Write(config.errorLedPin, PinValue.High); }
+                }
+            }));
+
+            threads.Add(new Thread(() =>
+            {
+                if (config.IsSensorEnabled(AwsSensor.Satellite))
+                {
+                    try
+                    {
+                        SatelliteSample sample = satellite.Sample();
+
+                        if (sample.WindSpeed != null)
                         {
-                            sampleBuffer.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
-                                ((int)sample.WindSpeed) * Inspeed8PulseAnemometer.MS_PER_HZ));
+                            if (lastWindSpeedSampleTime != null &&
+                                lastWindSpeedSampleTime == time - TimeSpan.FromSeconds(1))
+                            {
+                                sampleBuffer.WindSpeed.Add(new KeyValuePair<DateTime, double>(time,
+                                    ((int)sample.WindSpeed) * Inspeed8PulseAnemometer.MS_PER_HZ));
+                            }
+
+                            lastWindSpeedSampleTime = time;
                         }
 
-                        lastWindSpeedSampleTime = time;
-                    }
+                        if (sample.WindDirection != null)
+                        {
+                            sampleBuffer.WindDirection.Add(new KeyValuePair<DateTime, double>(
+                                time, (double)sample.WindDirection));
+                        }
 
-                    if (sample.WindDirection != null)
+                        if (sample.SunshineDuration != null)
+                            sampleBuffer.SunshineDuration.Add((bool)sample.SunshineDuration);
+                    }
+                    catch (Exception ex)
                     {
-                        sampleBuffer.WindDirection.Add(new KeyValuePair<DateTime, double>(
-                            time, (double)sample.WindDirection));
+                        Console.WriteLine(ex);
+                        gpio.Write(config.errorLedPin, PinValue.High);
                     }
-
-                    if (sample.SunshineDuration != null)
-                        sampleBuffer.SunshineDuration.Add((bool)sample.SunshineDuration);
                 }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                }
-            }
+            }));
 
-            if (config.IsSensorEnabled(AwsSensor.Rainfall))
+            threads.Add(new Thread(() =>
             {
-                try
+                if (config.IsSensorEnabled(AwsSensor.Rainfall))
                 {
-                    double rainfall = rainfallSensor.Sample();
-
-                    if (lastRainfallSampleTime != null &&
-                        lastRainfallSampleTime == time - TimeSpan.FromSeconds(1))
+                    try
                     {
-                        sampleBuffer.Rainfall.Add(rainfall);
-                    }
+                        double rainfall = rainfallSensor.Sample();
 
-                    lastRainfallSampleTime = time;
+                        if (lastRainfallSampleTime != null &&
+                            lastRainfallSampleTime == time - TimeSpan.FromSeconds(1))
+                        {
+                            sampleBuffer.Rainfall.Add(rainfall);
+                        }
+
+                        lastRainfallSampleTime = time;
+                    }
+                    catch
+                    {
+                        gpio.Write(config.errorLedPin, PinValue.High);
+                    }
                 }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                }
-            }
+            }));
+
+            foreach (Thread thread in threads)
+                thread.Start();
+
+            foreach (Thread thread in threads)
+                thread.Join();
         }
 
         /// <summary>
