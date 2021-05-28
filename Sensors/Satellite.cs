@@ -83,7 +83,7 @@ namespace Aws.Sensors
             // Wait for the Arduino to reset after connecting
             Thread.Sleep(2000);
 
-            string response = SendCommand("CONFIG " + config.ToJsonString() + "\n");
+            string response = SendCommand("CONFIG " + config.ToJsonString());
 
             if (response == null)
                 throw new SatelliteException("CONFIG command timed out");
@@ -112,7 +112,7 @@ namespace Aws.Sensors
             if (!IsOpen)
                 throw new InvalidOperationException("The sensor is not open");
 
-            string response = SendCommand("SAMPLE\n");
+            string response = SendCommand("SAMPLE");
 
             if (response == null)
                 throw new SatelliteException("SAMPLE command timed out");
@@ -134,7 +134,7 @@ namespace Aws.Sensors
         /// </returns>
         private string SendCommand(string command)
         {
-            serialPort.Write(command);
+            serialPort.Write(command + "\n");
             string response = "";
 
             Stopwatch timeout = new Stopwatch();
