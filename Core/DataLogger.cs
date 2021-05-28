@@ -43,6 +43,12 @@ namespace Aws.Core
         /// </summary>
         private readonly WindMonitor windMonitor = new WindMonitor();
 
+        /// <summary>
+        /// Stores the thread created in <see cref="Clock_Ticked(object, ClockTickedEventArgs)"/> so it can be joined
+        /// in <see cref="Dispose"/>.
+        /// </summary>
+        private Thread loggingThread;
+
         #region Sensors
         private Mcp9808 airTempSensor = null;
         private Htu21d relHumSensor = null;
@@ -215,6 +221,7 @@ namespace Aws.Core
             bme680?.Dispose();
             satellite?.Dispose();
             rainfallSensor?.Dispose();
+            loggingThread?.Join();
             IsOpen = false;
         }
 
@@ -248,36 +255,8 @@ namespace Aws.Core
             if (e.Time.Second == 0)
             {
                 // New thread allows further sampling to continue in the background
-                new Thread(() =>
-                {
-                    gpio.Write(config.errorLedPin, PinValue.Low);
-
-                    try
-                    {
-                        Log(e.Time);
-                    }
-                    catch (Exception ex)
-                    {
-                        gpio.Write(config.errorLedPin, PinValue.High);
-                        LogException(ex);
-                        return;
-                    }
-
-                    try
-                    {
-                        WriteStatistics(e.Time);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogException(ex);
-                    }
-
-                    gpio.Write(config.dataLedPin, PinValue.High);
-                    Thread.Sleep(1500);
-                    gpio.Write(config.dataLedPin, PinValue.Low);
-
-                    DataLogged?.Invoke(this, new DataLoggedEventArgs(e.Time));
-                }).Start();
+                loggingThread = new Thread(TopOfMinute);
+                loggingThread.Start(e.Time);
             }
         }
 
@@ -389,8 +368,55 @@ namespace Aws.Core
         }
 
         /// <summary>
-        /// Logs an observation for the samples in <see cref="sampleBuffer"/>, and empties
-        /// <see cref="sampleBuffer"/>.
+        /// The method that is called at the top of every minute to deal with the past minute of new samples. Logs an
+        /// observation, writes statistics and invokes <see cref="DataLogged"/>, among other things.
+        /// </summary>
+        /// <param name="time">
+        /// A <see cref="DateTime"/> containing the current time, in UTC. This is an <see cref="object"/> because the
+        /// method is designed to be used with <see cref="Thread.Start(object?)"/>.
+        /// </param>
+        /// <exception cref="ArgumentException">
+        /// Thrown if <paramref name="time"/> is not of type <see cref="DateTime"/>.
+        /// </exception>
+        private void TopOfMinute(object time)
+        {
+            if (time.GetType() != typeof(DateTime))
+            {
+                throw new ArgumentException(
+                    nameof(time) + " must be of type " + nameof(DateTime), nameof(time));
+            }
+
+            gpio.Write(config.errorLedPin, PinValue.Low);
+
+            try
+            {
+                Log((DateTime)time);
+            }
+            catch (Exception ex)
+            {
+                gpio.Write(config.errorLedPin, PinValue.High);
+                LogException(ex);
+                return;
+            }
+
+            try
+            {
+                WriteStatistics((DateTime)time);
+            }
+            catch (Exception ex)
+            {
+                LogException(ex);
+            }
+
+            gpio.Write(config.dataLedPin, PinValue.High);
+            Thread.Sleep(1500);
+            gpio.Write(config.dataLedPin, PinValue.Low);
+
+            DataLogged?.Invoke(this, new DataLoggedEventArgs((DateTime)time));
+        }
+
+        /// <summary>
+        /// Logs an observation for the samples in <see cref="sampleBuffer"/>, and empties <see cref="sampleBuffer"/>.
         /// </summary>
         /// <param name="time">
         /// The current time, in UTC.
