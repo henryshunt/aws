@@ -418,7 +418,10 @@ namespace Aws.Core
                 if (windValues.Item1 != null)
                     observation.WindSpeed = Math.Round((double)windValues.Item1, 1);
                 if (windValues.Item2 != null && observation.WindSpeed != null && observation.WindSpeed > 0)
-                    observation.WindDirection = (int)Math.Round((double)windValues.Item2, 0) % 360;
+                {
+                    observation.WindDirection = ((int)Math.Round((double)windValues.Item2, 0) +
+                        (int)config.sensors.satellite.windDir.offset) % 360;
+                }
                 if (windValues.Item3 != null)
                     observation.WindGust = Math.Round((double)windValues.Item3, 1);
             }

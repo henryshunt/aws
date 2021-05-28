@@ -52,7 +52,7 @@
                             "type": "object",
                             "properties": {
                                 "pin": {
-                                    "type": "number",
+                                    "type": "integer",
                                     "minimum": 0
                                 }
                             },
@@ -63,18 +63,23 @@
                             "type": "object",
                             "properties": {
                                 "pin": {
-                                    "type": "number",
+                                    "type": "integer",
                                     "minimum": 0
+                                },
+                                "offset": {
+                                    "type": "integer",
+                                    "minimum": -180,
+                                    "maximum": 180
                                 }
                             },
-                            "required": [ "pin" ]
+                            "required": [ "pin", "offset" ]
                         },
 
                         "sunDur": {
                             "type": "object",
                             "properties": {
                                 "pin": {
-                                    "type": "number",
+                                    "type": "integer",
                                     "minimum": 0
                                 }
                             },
@@ -89,7 +94,7 @@
                     "type": "object",
                     "properties": {
                         "pin": {
-                            "type": "number",
+                            "type": "integer",
                             "minimum": 0
                         }
                     },
