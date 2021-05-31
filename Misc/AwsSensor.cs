@@ -7,7 +7,7 @@
     {
         AirTemperature,
         RelativeHumidity,
-        Bme680,
+        StationPressure,
         Satellite,
         WindSpeed,
         WindDirection,

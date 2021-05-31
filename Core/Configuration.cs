@@ -97,8 +97,6 @@ namespace Aws.Core
                     return sensorsDict.ContainsKey("airTemp");
                 case AwsSensor.RelativeHumidity:
                     return sensorsDict.ContainsKey("relHum");
-                case AwsSensor.Bme680:
-                    return sensorsDict.ContainsKey("bme680");
                 case AwsSensor.Satellite:
                     return sensorsDict.ContainsKey("satellite");
                 case AwsSensor.WindSpeed:
@@ -119,6 +117,8 @@ namespace Aws.Core
                         }
                         else return false;
                     }
+                case AwsSensor.Rainfall:
+                    return sensorsDict.ContainsKey("rainfall");
                 case AwsSensor.SunshineDuration:
                     {
                         if (sensorsDict.ContainsKey("satellite"))
@@ -128,8 +128,8 @@ namespace Aws.Core
                         }
                         else return false;
                     }
-                case AwsSensor.Rainfall:
-                    return sensorsDict.ContainsKey("rainfall");
+                case AwsSensor.StationPressure:
+                    return sensorsDict.ContainsKey("staPres");
                 default: return false;
             }
         }

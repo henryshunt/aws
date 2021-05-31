@@ -52,7 +52,7 @@ namespace Aws.Core
         #region Sensors
         private Mcp9808 airTempSensor = null;
         private Htu21d relHumSensor = null;
-        private Bme680 bme680 = null;
+        private Bmp280 bmp280 = null;
         private Satellite satellite = null;
 
         /// <summary>
@@ -141,17 +141,17 @@ namespace Aws.Core
                 }
             }
 
-            if (config.IsSensorEnabled(AwsSensor.Bme680))
+            if (config.IsSensorEnabled(AwsSensor.StationPressure))
             {
                 try
                 {
-                    bme680 = new Bme680();
-                    bme680.Open();
+                    bmp280 = new Bmp280();
+                    bmp280.Open();
                 }
                 catch
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
-                    LogMessage("Failed to open BME680 sensor");
+                    LogMessage("Failed to open BMP280 sensor");
                     success = false;
                 }
             }
@@ -218,7 +218,7 @@ namespace Aws.Core
         {
             airTempSensor?.Dispose();
             relHumSensor?.Dispose();
-            bme680?.Dispose();
+            bmp280?.Dispose();
             satellite?.Dispose();
             rainfallSensor?.Dispose();
             loggingThread?.Join();
@@ -290,11 +290,11 @@ namespace Aws.Core
                     catch { gpio.Write(config.errorLedPin, PinValue.High); }
                 }
 
-                if (config.IsSensorEnabled(AwsSensor.Bme680))
+                if (config.IsSensorEnabled(AwsSensor.StationPressure))
                 {
                     try
                     {
-                        sampleBuffer.StationPressure.Add(bme680.Sample().Item2);
+                        sampleBuffer.StationPressure.Add(bmp280.Sample());
                     }
                     catch { gpio.Write(config.errorLedPin, PinValue.High); }
                 }
@@ -329,9 +329,8 @@ namespace Aws.Core
                         if (sample.SunshineDuration != null)
                             sampleBuffer.SunshineDuration.Add((bool)sample.SunshineDuration);
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine(ex);
                         gpio.Write(config.errorLedPin, PinValue.High);
                     }
                 }

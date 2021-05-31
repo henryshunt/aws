@@ -37,7 +37,6 @@
             "properties": {
                 "airTemp": { "type": "object" },
                 "relHum": { "type": "object" },
-                "bme680": { "type": "object" },
 
                 "satellite": {
                     "type": "object",
@@ -99,7 +98,9 @@
                         }
                     },
                     "required": [ "pin" ]
-                }
+                },
+
+                "staPres": { "type": "object" }
             }
         },
 
