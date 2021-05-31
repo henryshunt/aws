@@ -5,7 +5,7 @@ using System.Threading;
 namespace Aws.Sensors
 {
     /// <summary>
-    /// Represents a Rainwise Rainew 111 sensor.
+    /// Represents a Rainwise Rainew 111 rainfall sensor.
     /// </summary>
     internal class RainwiseRainew111 : Sensor
     {
@@ -19,7 +19,7 @@ namespace Aws.Sensors
         /// <summary>
         /// Stores the number of bucket tips since the last sample.
         /// </summary>
-        private volatile int counter = 0;
+        private volatile int counter;
 
         /// <summary>
         /// The amount of rainfall that one bucket tip equates to, in millimetres.
@@ -53,7 +53,9 @@ namespace Aws.Sensors
                 throw new InvalidOperationException("The sensor is already open");
             IsOpen = true;
 
-            gpio.OpenPin(pin, PinMode.InputPullUp);
+            counter = 0;
+
+            gpio.OpenPin(pin, PinMode.Input);
             gpio.RegisterCallbackForPinValueChangedEvent(pin, PinEventTypes.Falling,
                 OnBucketTip);
         }
@@ -61,7 +63,6 @@ namespace Aws.Sensors
         public override void Close()
         {
             gpio.UnregisterCallbackForPinValueChangedEvent(pin, OnBucketTip);
-            counter = 0;
         }
 
         /// <summary>
