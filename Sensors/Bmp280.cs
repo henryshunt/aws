@@ -32,7 +32,6 @@ namespace Aws.Sensors
                 new I2cConnectionSettings(1, Iot.Device.Bmxx80.Bmp280.DefaultI2cAddress));
 
             bmp280 = new Iot.Device.Bmxx80.Bmp280(i2cDevice);
-            bmp280.TemperatureSampling = Iot.Device.Bmxx80.Sampling.Skipped;
         }
 
         public override void Close()
