@@ -52,7 +52,6 @@ namespace Aws.Core
         #region Sensors
         private Mcp9808 airTempSensor = null;
         private Htu21d relHumSensor = null;
-        private Bmp280 bmp280 = null;
         private Satellite satellite = null;
 
         /// <summary>
@@ -66,6 +65,8 @@ namespace Aws.Core
         /// The time that <see cref="rainfallSensor"/> was last sampled successfully.
         /// </summary>
         private DateTime? lastRainfallSampleTime = null;
+
+        private Bmp280 staPresSensor = null;
         #endregion
 
         /// <summary>
@@ -145,8 +146,8 @@ namespace Aws.Core
             {
                 try
                 {
-                    bmp280 = new Bmp280();
-                    bmp280.Open();
+                    staPresSensor = new Bmp280();
+                    staPresSensor.Open();
                 }
                 catch
                 {
@@ -218,7 +219,7 @@ namespace Aws.Core
         {
             airTempSensor?.Dispose();
             relHumSensor?.Dispose();
-            bmp280?.Dispose();
+            staPresSensor?.Dispose();
             satellite?.Dispose();
             rainfallSensor?.Dispose();
             loggingThread?.Join();
@@ -294,7 +295,7 @@ namespace Aws.Core
                 {
                     try
                     {
-                        sampleBuffer.StationPressure.Add(bmp280.Sample());
+                        sampleBuffer.StationPressure.Add(staPresSensor.Sample());
                     }
                     catch { gpio.Write(config.errorLedPin, PinValue.High); }
                 }
