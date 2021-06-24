@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Device.Gpio;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Aws.Sensors
@@ -25,6 +26,11 @@ namespace Aws.Sensors
         /// The amount of rainfall that one bucket tip equates to, in millimetres.
         /// </summary>
         private const double MM_PER_BUCKET_TIP = 0.254;
+
+        /// <summary>
+        /// Used to debounce the rain gauge switch.
+        /// </summary>
+        private Stopwatch debounceTimer;
 
         /// <summary>
         /// Initialises a new instance of the <see cref="RainwiseRainew111"/> sensor.
@@ -54,6 +60,7 @@ namespace Aws.Sensors
             IsOpen = true;
 
             counter = 0;
+            debounceTimer = new Stopwatch();
 
             gpio.OpenPin(pin, PinMode.Input);
             gpio.RegisterCallbackForPinValueChangedEvent(pin, PinEventTypes.Falling,
@@ -85,7 +92,17 @@ namespace Aws.Sensors
 
         private void OnBucketTip(object sender, PinValueChangedEventArgs e)
         {
-            Interlocked.Increment(ref counter);
+            if (!debounceTimer.IsRunning)
+            {
+                Interlocked.Increment(ref counter);
+                debounceTimer.Start();
+            }
+            // Debounce the rain gauge switch
+            else if (debounceTimer.ElapsedMilliseconds >= 500)
+            {
+                Interlocked.Increment(ref counter);
+                debounceTimer.Restart();
+            }
         }
     }
 }
