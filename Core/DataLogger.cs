@@ -24,6 +24,11 @@ namespace Aws.Core
         public bool IsOpen { get; private set; } = false;
 
         /// <summary>
+        /// Indicates whether the data logger has been started.
+        /// </summary>
+        public bool IsStarted { get; private set; } = false;
+
+        /// <summary>
         /// Indicates whether the data logger has started sampling from the sensors.
         /// </summary>
         private bool isSampling = false;
@@ -47,7 +52,7 @@ namespace Aws.Core
         /// Stores the thread created in <see cref="Clock_Ticked(object, ClockTickedEventArgs)"/> so it can be joined
         /// in <see cref="Dispose"/>.
         /// </summary>
-        private Thread loggingThread;
+        private Thread loggingThread = null;
 
         #region Sensors
         private Mcp9808 airTempSensor = null;
@@ -81,7 +86,7 @@ namespace Aws.Core
         /// The configuration data.
         /// </param>
         /// <param name="clock">
-        /// The clock. The data logger will start operating when the clock is started.
+        /// The clock.
         /// </param>
         /// <param name="gpio">
         /// The GPIO controller.
@@ -91,8 +96,6 @@ namespace Aws.Core
             this.config = config;
             this.clock = clock;
             this.gpio = gpio;
-
-            clock.Ticked += Clock_Ticked;
         }
 
         /// <summary>
@@ -102,7 +105,7 @@ namespace Aws.Core
         /// <see langword="false"/> if any of the sensors failed to open, otherwise <see langword="true"/>.
         /// </returns>
         /// <exception cref="InvalidOperationException">
-        /// Thrown if the demodulator is already open.
+        /// Thrown if the data logger is already open.
         /// </exception>
         public bool Open()
         {
@@ -217,13 +220,34 @@ namespace Aws.Core
         /// </summary>
         public void Close()
         {
+            clock.Ticked -= Clock_Ticked;
+
             airTempSensor?.Dispose();
             relHumSensor?.Dispose();
             staPresSensor?.Dispose();
             satellite?.Dispose();
             rainfallSensor?.Dispose();
-            loggingThread?.Join();
+
+            if (loggingThread != null)
+                loggingThread?.Join();
+
             IsOpen = false;
+        }
+
+        /// <summary>
+        /// Starts the data logger.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the data logger is not open or has already been started.
+        /// </exception>
+        public void Start()
+        {
+            if (!IsOpen)
+                throw new InvalidOperationException("The data logger is not open");
+            else if (IsStarted)
+                throw new InvalidOperationException("The data logger has already been started");
+
+            clock.Ticked += Clock_Ticked;
         }
 
         /// <exception cref="InvalidOperationException">
@@ -231,9 +255,6 @@ namespace Aws.Core
         /// </exception>
         private void Clock_Ticked(object sender, ClockTickedEventArgs e)
         {
-            if (!IsOpen)
-                throw new InvalidOperationException("The data logger is not open");
-
             if (!isSampling)
             {
                 if (e.Time.Second == 0)
@@ -255,7 +276,6 @@ namespace Aws.Core
 
             if (e.Time.Second == 0)
             {
-                // New thread allows further sampling to continue in the background
                 loggingThread = new Thread(TopOfMinute);
                 loggingThread.Start(e.Time);
             }

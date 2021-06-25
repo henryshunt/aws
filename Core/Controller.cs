@@ -60,8 +60,17 @@ namespace Aws.Core
                 clock = new Clock(config.clockTickPin, gpio);
                 clock.Open();
 
-                LogMessage("Clock time is " +
-                    clock.DateTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                if (clock.IsTimeValid)
+                {
+                    LogMessage("Clock time is " +
+                        clock.Time.ToString("yyyy-MM-dd HH:mm:ss"));
+                }
+                else
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    LogMessage("Clock time is not valid");
+                    return;
+                }
             }
             catch (Exception ex)
             {
@@ -97,12 +106,12 @@ namespace Aws.Core
 
             try
             {
-                clock.EnableTickEvents();
+                dataLogger.Start();
             }
             catch
             {
                 gpio.Write(config.errorLedPin, PinValue.High);
-                LogMessage("Failed to start clock");
+                LogMessage("Failed to start data logger");
                 return;
             }
 
@@ -166,7 +175,6 @@ namespace Aws.Core
 
         private void Shutdown()
         {
-            clock.DisableTickEvents();
             dataLogger.Dispose();
             clock.Dispose();
         }
