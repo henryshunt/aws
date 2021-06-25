@@ -14,12 +14,12 @@ namespace Aws.Misc
         /// <summary>
         /// The path to the <see cref="DatabaseFile.Data"/> SQLite database.
         /// </summary>
-        private const string DATA_FILE = DATA_DIRECTORY + "data.sqlite";
+        private static readonly string DATA_FILE = Path.Combine(DATA_DIRECTORY, "data.sqlite");
 
         /// <summary>
         /// The path to the <see cref="DatabaseFile.Upload"/> SQLite database.
         /// </summary>
-        private const string UPLOAD_FILE = DATA_DIRECTORY + "upload.sqlite";
+        private static readonly string UPLOAD_FILE = Path.Combine(DATA_DIRECTORY, "upload.sqlite");
 
         /// <summary>
         /// Determines whether a database exists.

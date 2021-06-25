@@ -145,21 +145,6 @@ namespace Aws.Core
                 }
             }
 
-            if (config.IsSensorEnabled(AwsSensor.StationPressure))
-            {
-                try
-                {
-                    staPresSensor = new Bmp280();
-                    staPresSensor.Open();
-                }
-                catch
-                {
-                    gpio.Write(config.errorLedPin, PinValue.High);
-                    LogMessage("Failed to open BMP280 sensor");
-                    success = false;
-                }
-            }
-
             if (config.IsSensorEnabled(AwsSensor.Satellite))
             {
                 SatelliteConfiguration satConfig = new SatelliteConfiguration();
@@ -208,6 +193,21 @@ namespace Aws.Core
                 {
                     gpio.Write(config.errorLedPin, PinValue.High);
                     LogMessage("Failed to open rainfall sensor");
+                    success = false;
+                }
+            }
+
+            if (config.IsSensorEnabled(AwsSensor.StationPressure))
+            {
+                try
+                {
+                    staPresSensor = new Bmp280();
+                    staPresSensor.Open();
+                }
+                catch
+                {
+                    gpio.Write(config.errorLedPin, PinValue.High);
+                    LogMessage("Failed to open BMP280 sensor");
                     success = false;
                 }
             }
@@ -410,7 +410,7 @@ namespace Aws.Core
 
             try
             {
-                Log((DateTime)time);
+                LogObservation((DateTime)time);
             }
             catch (Exception ex)
             {
@@ -421,7 +421,7 @@ namespace Aws.Core
 
             try
             {
-                WriteStatistics((DateTime)time);
+                UpdateStatistics((DateTime)time);
             }
             catch (Exception ex)
             {
@@ -441,7 +441,7 @@ namespace Aws.Core
         /// <param name="time">
         /// The current time, in UTC.
         /// </param>
-        private void Log(DateTime time)
+        private void LogObservation(DateTime time)
         {
             SampleBuffer samples = sampleBuffer;
             sampleBuffer = new SampleBuffer();
@@ -509,7 +509,7 @@ namespace Aws.Core
         /// <param name="time">
         /// The current time, in UTC.
         /// </param>
-        private void WriteStatistics(DateTime time)
+        private void UpdateStatistics(DateTime time)
         {
             DateTime local = TimeZoneInfo.ConvertTimeFromUtc(time, config.position.timeZone);
 
